@@ -13,6 +13,8 @@ fn bytes_to_u32(bytes: &[u8]) -> Result<u32, &str> {
 
 pub fn load_bmp(path: &str) -> Result<Surface, Box<dyn Error>> {
     //doesnt work on non rgba bmps
+    //this could most definetely be improved, but it works rn
+
 
     let px_offset_index = 0x0A;
     let img_size_index = 0x12;
@@ -22,7 +24,7 @@ pub fn load_bmp(path: &str) -> Result<Surface, Box<dyn Error>> {
     let width = bytes_to_u32(&file[img_size_index..img_size_index + 4])? as usize;
     let height = bytes_to_u32(&file[img_size_index + 4..img_size_index + 8])? as usize;
 
-    //this could propably be improved
+
 
     let mut pixel_buffer: Vec<u32> = vec![0; width * height];
     for (i, value) in file[pixel_array_offset..]

@@ -6,9 +6,7 @@ use std::time;
 const WIDTH: usize = 500;
 const HEIGHT: usize = 300;
 const TILE_SIZE: usize = 25;
-
 const MAP_WIDTH: usize = WIDTH / TILE_SIZE;
-
 const MAP_HEIGHT: usize = HEIGHT / TILE_SIZE;
 
 mod math;
