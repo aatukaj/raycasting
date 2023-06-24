@@ -25,6 +25,9 @@ fn main() {
     tiles[25..30].iter_mut().for_each(|val| *val = 1);
     tiles[63..68].iter_mut().for_each(|val| *val = 1);
 
+
+
+
     let mut window = Window::new(
         "Test - ESC to exit",
         WIDTH * 2,
@@ -44,8 +47,6 @@ fn main() {
 
     let mut now = time::SystemTime::now();
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        println!("{:?}", pos);
-
         let dt = now.elapsed().unwrap().as_secs_f32();
         now = time::SystemTime::now();
         screen.fill(0);
@@ -100,7 +101,6 @@ fn main() {
             Key::S => pos.y += 40.0 * dt,
             _ => (),
         });
-        // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
         window
             .update_with_buffer(&screen.pixel_buffer, WIDTH, HEIGHT)
             .unwrap();

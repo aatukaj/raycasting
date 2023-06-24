@@ -1,5 +1,5 @@
 
-use crate::surface::*;
+use crate::Surface;
 
 struct LineDrawer {
     end_x: i32,

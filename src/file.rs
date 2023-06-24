@@ -12,7 +12,7 @@ fn bytes_to_u32(bytes: &[u8]) -> Result<u32, &str> {
 }
 
 pub fn load_bmp(path: &str) -> Result<Surface, Box<dyn Error>> {
-    //doesnt work on non rgba bmps
+    //doesnt work on non rgba bmps, a fix should be pretty easy??
     //this could most definetely be improved, but it works rn
 
 
