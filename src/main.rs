@@ -9,7 +9,10 @@ const HEIGHT: usize = 300;
 const TILE_SIZE: usize = 10;
 const MAP_WIDTH: usize = WIDTH / 25;
 const MAP_HEIGHT: usize = HEIGHT / 25;
+const MAP_SIZE: usize = MAP_WIDTH * MAP_HEIGHT;
 const FOV: f32 = PI / 2.5; //90 dgs in radians;
+
+const PLAYER_SIZE: f32 = 0.5;
 
 mod math;
 use math::*;
@@ -25,6 +28,16 @@ fn main() {
     let image = load_bmp("assets/player.bmp").expect("couldnt load");
 
     let mut tiles = vec![0u8; WIDTH * HEIGHT];
+
+    tiles[0..MAP_WIDTH].iter_mut().for_each(|val| *val = 1);
+    tiles[(MAP_SIZE - MAP_WIDTH)..MAP_SIZE]
+        .iter_mut()
+        .for_each(|val| *val = 1);
+    for i in 0..MAP_HEIGHT {
+        tiles[i * MAP_WIDTH] = 1;
+        tiles[i * MAP_WIDTH + MAP_WIDTH - 1] = 1;
+    }
+
     tiles[25..30].iter_mut().for_each(|val| *val = 1);
     tiles[63..68].iter_mut().for_each(|val| *val = 1);
 
@@ -43,7 +56,7 @@ fn main() {
         panic!("{}", e);
     });
 
-    let mut pos: Vec2<f32> = Vec2::new(0.0, 0.0);
+    let mut pos: Vec2<f32> = Vec2::new(2.0, 2.0);
     // Limit to max ~60 fps update rate
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
@@ -56,7 +69,7 @@ fn main() {
 
         let m_pos = Vec2::from_tuple(window.get_mouse_pos(MouseMode::Clamp).unwrap()) / 2.0;
 
-        let player_tile_pos = pos / TILE_SIZE as f32;
+        let player_tile_pos = pos;
         let m_dir: Vec2<f32> = Vec2::new(0.0, -1.0).rotate(m_angle);
         let ray_start = player_tile_pos.clone();
         let rays: Vec<Vec2<f32>> = (0..WIDTH)
@@ -122,11 +135,9 @@ fn main() {
                     ray_length_1d.y += ray_unit_step.y;
                 }
 
-
-
-                if map_check.x > 0
+                if map_check.x >= 0
                     && map_check.x < MAP_WIDTH as i32
-                    && map_check.y > 0
+                    && map_check.y >= 0
                     && map_check.y < MAP_HEIGHT as i32
                 {
                     let index = map_check.x + map_check.y * MAP_WIDTH as i32;
@@ -157,15 +168,46 @@ fn main() {
             }
         }
 
+        let mut vel = Vec2::new(0.0, 0.0);
         window.get_keys().iter().for_each(|key| match key {
-            Key::A => pos = pos + Vec2::new(-50.0, 0.0).rotate(m_angle) * dt,
-            Key::D => pos = pos + Vec2::new(50.0, 0.0).rotate(m_angle) * dt,
-            Key::W => pos = pos + Vec2::new(0.0, -50.0).rotate(m_angle) * dt,
-            Key::S => pos = pos + Vec2::new(0.0, 50.0).rotate(m_angle) * dt,
+            Key::A => vel = vel + Vec2::new(-5.0, 0.0).rotate(m_angle) * dt,
+            Key::D => vel = vel + Vec2::new(5.0, 0.0).rotate(m_angle) * dt,
+            Key::W => vel = vel + Vec2::new(0.0, -5.0).rotate(m_angle) * dt,
+            Key::S => vel = vel + Vec2::new(0.0, 5.0).rotate(m_angle) * dt,
             Key::Left => m_angle -= 2.0 * dt,
             Key::Right => m_angle += 2.0 * dt,
             _ => (),
         });
+
+        let mut new_pos = pos.clone();
+
+        new_pos.x += vel.x;
+        if vel.x > 0.0 {
+            if tiles[(new_pos.x + 0.25) as usize + new_pos.y as usize * MAP_WIDTH] == 1 {
+                new_pos.x = new_pos.x.floor() + 0.75;
+                println!("{:?}", new_pos);
+            }
+        } else {
+            if tiles[(new_pos.x - 0.25) as usize + new_pos.y as usize * MAP_WIDTH] == 1 {
+                new_pos.x = new_pos.x.floor() + 0.25;
+                println!("{:?}", new_pos);
+            }
+        }
+
+        new_pos.y += vel.y;
+        if vel.y > 0.0 {
+            if tiles[new_pos.x as usize + (new_pos.y + 0.25) as usize * MAP_WIDTH] == 1 {
+                new_pos.y = new_pos.y.floor() + 0.75;
+                println!("{:?}", new_pos);
+            }
+        } else {
+            if tiles[new_pos.x as usize + (new_pos.y - 0.25) as usize * MAP_WIDTH] == 1 {
+                new_pos.y = new_pos.y.floor() + 0.25;
+                println!("{:?}", new_pos);
+            }
+        }
+
+        pos = new_pos;
 
         for (i, &val) in tiles.iter().enumerate() {
             if val == 1 {
@@ -196,7 +238,11 @@ fn main() {
                 0xffffff,
             );
         }
-        screen.blit(&image, pos.x.floor() as i32, pos.y.floor() as i32);
+        screen.blit(
+            &image,
+            pos.x as i32 * TILE_SIZE as i32,
+            pos.y as i32 * TILE_SIZE as i32,
+        );
         window
             .update_with_buffer(&screen.pixel_buffer, WIDTH, HEIGHT)
             .unwrap();
