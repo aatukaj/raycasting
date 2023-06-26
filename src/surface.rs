@@ -1,3 +1,4 @@
+
 pub struct Surface {
     pub width: usize,
     pub height: usize,
@@ -25,11 +26,14 @@ impl Surface {
         return Err(());
     }
 
-    pub fn blit(&mut self, source: &Surface, x: usize, y: usize) {
+    pub fn blit(&mut self, source: &Surface, x: i32, y: i32) {
         for (i, &val) in source.pixel_buffer.iter().enumerate() {
-            let x = i % source.width + x;
-            let y = i / source.width + y;
-            let index = x + y * self.width;
+            let x = i as i32 % source.width as i32 + x;
+            let y = i as i32 / source.width as i32 + y;
+            if x < 0 || y < 0 {
+                continue;
+            }
+            let index = x as usize + y as usize * self.width;
             if index < self.pixel_buffer.len() && val >> 24 == 0xff {
                 self.pixel_buffer[index] = val;
             }
