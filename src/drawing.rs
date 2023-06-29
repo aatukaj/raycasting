@@ -74,13 +74,13 @@ impl Iterator for LineDrawer {
 }
 
 pub fn val_from_rgb(r: u32, g: u32, b: u32) -> u32 {
-    b.min(255) + (g.min(255) << 8) + (r.min(255) << 16) + (255<< 24)
+    b.min(255) | (g.min(255) << 8) | (r.min(255) << 16) | (255<< 24)
 }
 
 pub fn draw_dotted_line(surf: &mut Surface, p0: Vec2<i32>, p1: Vec2<i32>, value: u32) {
     for (x, y) in LineDrawer::new(p0.x, p0.y, p1.x, p1.y)
         .enumerate()
-        .filter_map(|(i, el)| ((0..3).contains(&(i % 6))).then(|| el))
+        .filter_map(|(i, el)| ((0..3).contains(&(i % 6))).then_some(el))
     {
         let _ = surf.set_pixel(x as u32, y as u32, value);
     }

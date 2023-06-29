@@ -38,8 +38,8 @@ pub fn load_bmp(path: &str) -> Result<Surface, Box<dyn Error>> {
     }
 
     Ok(Surface {
-        width: width as usize,
-        height: height as usize,
+        width: width,
+        height: height,
         pixel_buffer,
     })
 }

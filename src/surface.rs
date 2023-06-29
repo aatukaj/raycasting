@@ -41,30 +41,20 @@ impl Surface {
         }
     }
     pub fn blit_scaled(&mut self, source: &Surface, pos: Vec2<i32>, scale: f32) {
-        let step = 1.0 / scale;
-        let mut x = 0.0;
-
-        loop {
-            let mut y = 0.0;
-            loop {
-                let ix = (x / step) as i32 + pos.x - (source.width as f32 * (0.5 * scale)) as i32;
-                let iy = (y / step) as i32 + pos.y - (source.height as f32 * (0.5 * scale)) as i32;
-
-                if ix >= 0 && ix < self.width as i32 && iy >= 0 && iy < self.height as i32 {
-                    let val = source.pixel_buffer[x as usize + y as usize * source.width];
-                    if val != 0 {
-                        self.pixel_buffer[ix as usize + iy as usize * self.width] = val
-                    }
+        let scaled_width = (source.width as f32 * scale) as i32;
+        let scaled_height = (source.height as f32 * scale) as i32;
+        let offset_x = pos.x - scaled_width / 2;
+        let offset_y = pos.y - scaled_height / 2;
+        for y in offset_y.max(0)..(offset_y + scaled_height).min(self.height as i32) {
+            for x in offset_x.max(0)..(offset_x + scaled_width).min(self.width as i32) {
+                let index_self = x as usize + y as usize * self.width;
+                let index_source = ((x - offset_x) as f32 / scale) as usize + ((y - offset_y) as f32 / scale) as usize * source.width;
+                let val = source.pixel_buffer[index_source];
+                if val != 0 {
+                    self.pixel_buffer[index_self] = val;
                 }
-                y += step;
-                if y >= source.height as f32 {
-                    break;
-                }
-            }
-            x += step;
-            if x >= source.width as f32 {
-                break;
             }
         }
     }
 }
+

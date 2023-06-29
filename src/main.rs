@@ -30,30 +30,30 @@ struct Player {
     look_angle: f32,
 }
 
-struct DepthBufferInfo<'a> {
+struct DepthBufferData<'a> {
     distance: f32,
     column: i32,
-    info_type: BufferInfoType<'a>,
+    data_type: BufferDataType<'a>,
 }
 
-impl Ord for DepthBufferInfo<'_> {
+impl Ord for DepthBufferData<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.distance.total_cmp(&other.distance)
     }
 }
-impl PartialOrd for DepthBufferInfo<'_> {
+impl PartialOrd for DepthBufferData<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
-impl PartialEq for DepthBufferInfo<'_> {
+impl PartialEq for DepthBufferData<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.distance == other.distance
     }
 }
-impl Eq for DepthBufferInfo<'_> {}
+impl Eq for DepthBufferData<'_> {}
 
-enum BufferInfoType<'a> {
+enum BufferDataType<'a> {
     Wall,
     Sprite { surf: &'a Surface },
 }
@@ -61,6 +61,7 @@ enum BufferInfoType<'a> {
 fn main() {
     let mut screen = Surface::empty(WIDTH, HEIGHT);
     let image = load_bmp("assets/player.bmp").expect("couldnt load");
+    let gun_image = load_bmp("assets/gun.bmp").unwrap();
     let mut tiles = vec![0u8; WIDTH * HEIGHT];
 
     let mut player = Player {
@@ -99,7 +100,7 @@ fn main() {
 
     // Limit to max ~60 fps update rate
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
-    let mut depth_buffer: BinaryHeap<DepthBufferInfo> = BinaryHeap::with_capacity(WIDTH + 10);
+    let mut depth_buffer: BinaryHeap<DepthBufferData> = BinaryHeap::with_capacity(WIDTH + 10);
 
     let mut now = time::SystemTime::now();
     while window.is_open() && !window.is_key_down(Key::Escape) {
@@ -127,7 +128,7 @@ fn main() {
         let m_pos = Vec2::from_tuple(window.get_mouse_pos(MouseMode::Clamp).unwrap()) / 2.0;
 
         let m_dir: Vec2<f32> = Vec2::new(0.0, -1.0).rotate(player.look_angle);
-        let ray_start = player.pos.clone();
+        let ray_start = player.pos;
         let rays: Vec<Vec2<f32>> = (0..WIDTH)
             .map(|i| {
                 let a = (i as f32 / WIDTH as f32 - 0.5) * FOV;
@@ -167,11 +168,11 @@ fn main() {
             while !tile_found && distance < max_distance {
                 if ray_length_1d.x < ray_length_1d.y {
                     map_check.x += step.x;
-                    distance = ray_length_1d.x as f32;
+                    distance = ray_length_1d.x;
                     ray_length_1d.x += ray_unit_step.x;
                 } else {
                     map_check.y += step.y;
-                    distance = ray_length_1d.y as f32;
+                    distance = ray_length_1d.y;
                     ray_length_1d.y += ray_unit_step.y;
                 }
 
@@ -191,10 +192,10 @@ fn main() {
 
                 let distance = distance * (-FOV / 2.0 + (FOV / WIDTH as f32) * index as f32).cos();
 
-                depth_buffer.push(DepthBufferInfo {
+                depth_buffer.push(DepthBufferData {
                     distance,
                     column: index as i32,
-                    info_type: BufferInfoType::Wall,
+                    data_type: BufferDataType::Wall,
                 });
                 draw_rect(
                     &mut screen,
@@ -216,7 +217,7 @@ fn main() {
             _ => (),
         });
 
-        let mut new_pos = player.pos.clone();
+        let mut new_pos = player.pos;
 
         new_pos.x += vel.x;
         if vel.x > 0.0 {
@@ -257,11 +258,11 @@ fn main() {
         let angle = enemy_projected_pos.x.atan2(enemy_projected_pos.y);
 
         let column = ((angle + FOV) / FOV * WIDTH as f32) as i32 - WIDTH as i32 / 2;
-        if enemy_projected_pos.y > 0.0 && angle.abs() < FOV / 2.0 {
-            depth_buffer.push(DepthBufferInfo {
+        if enemy_projected_pos.y > 0.0 && angle.abs() < FOV / 1.5 {
+            depth_buffer.push(DepthBufferData {
                 distance: enemy_projected_pos.y,
                 column,
-                info_type: BufferInfoType::Sprite { surf: &image },
+                data_type: BufferDataType::Sprite { surf: &image },
             });
         }
 
@@ -279,28 +280,31 @@ fn main() {
         );
 
         for _ in 0..depth_buffer.len() {
-            let buf_info = depth_buffer.pop().unwrap();
-            let value = (1.0 / buf_info.distance).min(1.0);
-            match buf_info.info_type {
-                BufferInfoType::Wall => {
-                    let height = (value * 1.0 * HEIGHT as f32) as i32;
+            let buf_data = depth_buffer.pop().unwrap();
+            let value = (1.0 / buf_data.distance).min(1.0);
+            match buf_data.data_type {
+                BufferDataType::Wall => {
+                    let height = (value * 1.5 * HEIGHT as f32) as i32;
                     let col = val_from_rgb(0, 0, ((value).sqrt() * 255.0) as u32);
                     draw_rect(
                         &mut screen,
-                        Vec2::new(buf_info.column, HEIGHT as i32 / 2 - height / 2),
+                        Vec2::new(buf_data.column, HEIGHT as i32 / 2 - height / 2),
                         Vec2::new(1, height),
                         col,
                     );
                 }
-                BufferInfoType::Sprite { surf } => {
-
-                    screen.blit_scaled(surf, Vec2::new(buf_info.column, HEIGHT as i32 / 2), 1.0/buf_info.distance * 20.0);
+                BufferDataType::Sprite { surf } => {
+                    screen.blit_scaled(
+                        surf,
+                        Vec2::new(buf_data.column, HEIGHT as i32 / 2),
+                        1.0 / buf_data.distance * 20.0,
+                    );
                 }
             }
         }
         depth_buffer.clear();
+        screen.blit_scaled(&gun_image, Vec2::new((WIDTH / 2) as i32, (HEIGHT - gun_image.width / 2 - 5) as i32), 2.0);
 
-        screen.blit_scaled(&image, m_pos.as_i32(), 4.0);
         for (i, &val) in tiles.iter().enumerate() {
             if val == 1 {
                 draw_rect(
