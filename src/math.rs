@@ -1,6 +1,6 @@
 use std::ops::*;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Vec2<T: Num> {
     pub x: T,
     pub y: T,

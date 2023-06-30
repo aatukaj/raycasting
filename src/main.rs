@@ -1,9 +1,11 @@
-use minifb::{Key, MouseMode, Window, WindowOptions};
-use std::collections::binary_heap::*;
+use minifb::{Key, MouseMode, Window, WindowOptions, MENU_KEY_WIN};
+use std::collections::{BinaryHeap, VecDeque};
 
 use std::error::Error;
 use std::f32::consts::PI;
 use std::time;
+
+use rand::prelude::*;
 
 mod math;
 use math::*;
@@ -29,6 +31,64 @@ struct TileMap {
     height: usize,
     buf: Vec<u8>,
 }
+impl TileMap {
+    fn get_tile(&self, pos: Vec2<i32>) -> u8 {
+        if 0 <= pos.x && pos.x < self.width as i32 && 0 <= pos.y && pos.y < self.height as i32 {
+            return self.buf[pos.x as usize + pos.y as usize * self.width];
+        }
+        0
+    }
+}
+
+#[derive(PartialEq, Debug)]
+struct Rect {
+    pos: Vec2<f32>,
+    size: f32,
+}
+impl Rect {
+    fn get_corners(&self) -> [Vec2<f32>; 4] {
+        let h_size = self.size / 2.0;
+        [
+            self.pos + Vec2::new(h_size, h_size),
+            self.pos + Vec2::new(-h_size, h_size),
+            self.pos + Vec2::new(-h_size, -h_size),
+            self.pos + Vec2::new(h_size, -h_size),
+        ]
+    }
+
+    fn get_top(&self) -> f32 {
+        self.pos.y - self.size / 2.0
+    }
+    fn get_bottom(&self) -> f32 {
+        self.pos.y + self.size / 2.0
+    }
+    fn get_left(&self) -> f32 {
+        self.pos.x - self.size / 2.0
+    }
+    fn get_right(&self) -> f32 {
+        self.pos.x + self.size / 2.0
+    }
+    fn set_top(&mut self, y: f32) {
+        self.pos.y = y + self.size / 2.0;
+    }
+    fn set_bottom(&mut self, y: f32) {
+        self.pos.y = y - self.size / 2.0;
+    }
+    fn set_left(&mut self, x: f32) {
+        self.pos.x = x + self.size / 2.0;
+    }
+    fn set_right(&mut self, x: f32) {
+        self.pos.x = x - self.size / 2.0;
+    }
+    fn collide(&self, other: &Rect) -> bool {
+        let a_min = Vec2::new(self.get_left(), self.get_top());
+        let a_max = Vec2::new(self.get_right(), self.get_bottom());
+        let b_min = Vec2::new(other.get_left(), other.get_top());
+        let b_max = Vec2::new(other.get_bottom(), other.get_right());
+
+        a_min.x < b_max.x && a_max.x > b_min.x && a_min.y < b_max.y && a_max.y > b_min.y
+    }
+}
 
 fn load_map(path: &str) -> Result<TileMap, Box<dyn Error>> {
     let contents = fs::read_to_string(path)?;
@@ -49,41 +109,82 @@ struct Entity<'a> {
     sprite: Option<&'a Surface>,
     look_angle: f32,
     vel: Vec2<f32>,
-    size: f32,
+
+    rect: Rect,
 }
-impl Entity<'_> {
-    fn update(&mut self, dt: f32, tile_map: &TileMap) {
-        let tiles = &tile_map.buf;
-        let mut new_pos = self.pos;
-        new_pos.x += self.vel.x * dt;
-        if self.vel.x > 0.0 {
-            if tiles[(new_pos.x + self.size / 2.0) as usize + new_pos.y as usize * tile_map.width]
-                == 1
-            {
-                new_pos.x = new_pos.x.ceil() - self.size / 2.0;
-            }
-        } else {
-            if tiles[(new_pos.x - self.size / 2.0) as usize + new_pos.y as usize * tile_map.width]
-                == 1
-            {
-                new_pos.x = new_pos.x.floor() + self.size / 2.0;
+impl<'a> Entity<'a> {
+    fn new(pos: Vec2<f32>, sprite: Option<&'a Surface>, vel: Vec2<f32>, size: f32) -> Self {
+        Entity {
+            pos,
+            sprite,
+            look_angle: 0.0,
+            vel,
+            rect: Rect { pos, size },
+        }
+    }
+
+    fn update(&mut self, dt: f32, tile_map: &TileMap, entities: &[Entity]) {
+        self.rect.pos = self.pos;
+        self.rect.pos.x += self.vel.x * dt;
+        let h_size = self.rect.size / 2.0;
+        let corners = [
+            self.rect.pos + Vec2::new(h_size, h_size),
+            self.rect.pos + Vec2::new(-h_size, h_size),
+            self.rect.pos + Vec2::new(-h_size, -h_size),
+            self.rect.pos + Vec2::new(h_size, -h_size),
+        ];
+        let cols = corners
+            .iter()
+            .map(|pos| pos.as_i32())
+            .filter(|pos| tile_map.get_tile(*pos) != 0);
+
+        for col in cols {
+            if self.vel.x > 0.0 {
+                self.rect.pos.x = col.x as f32 - h_size - 0.00420; //i dont like the arbitrary subtraction but it fixes a bug
+            } else {
+                self.rect.pos.x = col.x as f32 + 1.0 + h_size;
             }
         }
-        new_pos.y += self.vel.y * dt;
-        if self.vel.y > 0.0 {
-            if tiles[new_pos.x as usize + (new_pos.y + self.size / 2.0) as usize * tile_map.width]
-                == 1
-            {
-                new_pos.y = new_pos.y.ceil() - self.size / 2.0;
-            }
-        } else {
-            if tiles[new_pos.x as usize + (new_pos.y - self.size / 2.0) as usize * tile_map.width]
-                == 1
-            {
-                new_pos.y = new_pos.y.floor() + self.size / 2.0;
+        for entity in entities.iter() {
+            if self.rect.collide(&entity.rect) {
+                if self.vel.x > 0.0 {
+                    self.rect.set_right(entity.rect.get_left());
+                } else {
+                    self.rect.set_left(entity.rect.get_right());
+                }
             }
         }
-        self.pos = new_pos;
+
+        self.rect.pos.y += self.vel.y * dt;
+        let corners = [
+            self.rect.pos + Vec2::new(h_size, h_size),
+            self.rect.pos + Vec2::new(-h_size, h_size),
+            self.rect.pos + Vec2::new(-h_size, -h_size),
+            self.rect.pos + Vec2::new(h_size, -h_size),
+        ];
+        let cols = corners
+            .iter()
+            .map(|pos| pos.as_i32())
+            .filter(|pos| tile_map.get_tile(*pos) != 0);
+
+        for col in cols {
+            if self.vel.y > 0.0 {
+                self.rect.pos.y = col.y as f32 - h_size - 0.00420;
+            } else {
+                self.rect.pos.y = col.y as f32 + 1.0 + h_size;
+            }
+        }
+        for entity in entities.iter() {
+            if self.rect.collide(&entity.rect) {
+                if self.vel.y > 0.0 {
+                    self.rect.set_bottom(entity.rect.get_top());
+                } else {
+                    self.rect.set_top(entity.rect.get_bottom());
+                }
+            }
+        }
+
+        self.pos = self.rect.pos;
     }
 }
 
@@ -123,27 +224,14 @@ fn main() {
     let bullet_image = load_bmp("assets/bullet.bmp").unwrap();
 
     let mut entities = vec![
-        Entity {
-            pos: Vec2::new(2.0, 2.0),
-            size: PLAYER_SIZE,
-            look_angle: 0.0,
-            vel: Vec2::new(0.0, 0.0),
-            sprite: None,
-        },
-        Entity {
-            pos: Vec2::new(9.5, 9.5),
-            sprite: Some(&image),
-            look_angle: 0.0,
-            vel: Vec2::new(0.0, 0.0),
-            size: 0.5,
-        },
-        Entity {
-            pos: Vec2::new(12.0, 8.5),
-            sprite: Some(&bullet_image),
-            look_angle: 0.0,
-            vel: Vec2::new(0.0, 0.0),
-            size: 0.3,
-        },
+        Entity::new(Vec2::new(2.5, 2.5), None, Vec2::new(0.0, 0.0), PLAYER_SIZE),
+        Entity::new(Vec2::new(9.5, 9.5), Some(&image), Vec2::new(0.0, 0.0), 0.5),
+        Entity::new(
+            Vec2::new(12.0, 8.5),
+            Some(&bullet_image),
+            Vec2::new(0.0, 0.0),
+            1.5,
+        ),
     ];
 
     let mut window = Window::new(
@@ -190,9 +278,15 @@ fn main() {
         //let m_pos = Vec2::from_tuple(window.get_mouse_pos(MouseMode::Clamp).unwrap()) / 2.0;
         handle_input(&window, dt, &mut entities, &bullet_image);
 
-        for entity in entities.iter_mut() {
-            entity.update(dt, &tile_map)
+        let mut entity = entities.swap_remove(0);
+        entity.update(dt, &tile_map, &entities);
+        entities.push(entity);
+        for i in 0..(entities.len() - 1) {
+            let mut entity = entities.swap_remove(i);
+            entity.update(dt, &tile_map, &entities);
+            entities.push(entity);
         }
+
         cast_rays(&tile_map, &mut depth_buffer, &mut screen, &entities[0]);
         project_entities(&entities, &mut depth_buffer);
 
@@ -325,7 +419,6 @@ fn cast_rays(
     screen: &mut Surface,
     player: &Entity,
 ) {
-    let tiles = &tile_map.buf;
     let m_dir: Vec2<f32> = Vec2::new(0.0, -1.0).rotate(player.look_angle);
     let ray_start = player.pos;
     let rays: Vec<Vec2<f32>> = (0..WIDTH)
@@ -375,15 +468,8 @@ fn cast_rays(
                 ray_length_1d.y += ray_unit_step.y;
             }
 
-            if map_check.x >= 0
-                && map_check.x < tile_map.width as i32
-                && map_check.y >= 0
-                && map_check.y < tile_map.height as i32
-            {
-                let index = map_check.x + map_check.y * tile_map.width as i32;
-                if tiles[index as usize] == 1 {
-                    tile_found = true;
-                }
+            if tile_map.get_tile(map_check) == 1 {
+                tile_found = true;
             }
         }
         if tile_found {
@@ -427,13 +513,15 @@ fn handle_input<'a>(window: &Window, dt: f32, entities: &mut Vec<Entity<'a>>, bi
         .get_keys_pressed(minifb::KeyRepeat::No)
         .iter()
         .for_each(|key| match key {
-            Key::Space => entities.push(Entity {
-                pos: entities[0].pos,
-                sprite: Some(bimage),
-                look_angle: 0.0,
-                vel: Vec2::new(0.0, -1.0).rotate(entities[0].look_angle) * 5.0,
-                size: 0.3,
-            }),
+            Key::Space => {
+                let dir = Vec2::new(0.0, -1.0).rotate(entities[0].look_angle);
+                entities.push(Entity::new(
+                    entities[0].pos + dir * 0.5,
+                    Some(bimage),
+                    dir * 8.0,
+                    0.3,
+                ))
+            }
             _ => (),
         })
 }
