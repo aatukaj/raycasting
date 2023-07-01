@@ -1,5 +1,5 @@
-use minifb::{Key, MouseMode, Window, WindowOptions, MENU_KEY_WIN};
-use std::collections::{BinaryHeap, VecDeque};
+use minifb::{Key, Window, WindowOptions};
+use std::collections::{BinaryHeap};
 
 use std::error::Error;
 use std::f32::consts::PI;
@@ -24,7 +24,12 @@ const TILE_SIZE: usize = 10;
 
 const FOV: f32 = 90.0 / 180.0 * PI;
 
-const PLAYER_SIZE: f32 = 1.0;
+const PLAYER_SIZE: f32 = 0.8;
+
+enum Direction {
+    Horizontal,
+    Vertical,
+}
 
 struct TileMap {
     width: usize,
@@ -37,6 +42,13 @@ impl TileMap {
             return self.buf[pos.x as usize + pos.y as usize * self.width];
         }
         0
+    }
+    fn get_collisions<'a>(&'a self, rect: &'a Rect) -> Vec<Vec2<i32>> {
+        rect.get_corners()
+            .iter()
+            .map(|pos| pos.as_i32())
+            .filter(|pos| self.get_tile(*pos) != 0)
+            .collect()
     }
 }
 
@@ -111,15 +123,23 @@ struct Entity<'a> {
     vel: Vec2<f32>,
 
     rect: Rect,
+    collidable: bool,
 }
 impl<'a> Entity<'a> {
-    fn new(pos: Vec2<f32>, sprite: Option<&'a Surface>, vel: Vec2<f32>, size: f32) -> Self {
+    fn new(
+        pos: Vec2<f32>,
+        sprite: Option<&'a Surface>,
+        vel: Vec2<f32>,
+        size: f32,
+        collidable: bool,
+    ) -> Self {
         Entity {
             pos,
             sprite,
             look_angle: 0.0,
             vel,
             rect: Rect { pos, size },
+            collidable,
         }
     }
 
@@ -127,17 +147,7 @@ impl<'a> Entity<'a> {
         self.rect.pos = self.pos;
         self.rect.pos.x += self.vel.x * dt;
         let h_size = self.rect.size / 2.0;
-        let corners = [
-            self.rect.pos + Vec2::new(h_size, h_size),
-            self.rect.pos + Vec2::new(-h_size, h_size),
-            self.rect.pos + Vec2::new(-h_size, -h_size),
-            self.rect.pos + Vec2::new(h_size, -h_size),
-        ];
-        let cols = corners
-            .iter()
-            .map(|pos| pos.as_i32())
-            .filter(|pos| tile_map.get_tile(*pos) != 0);
-
+        let cols = tile_map.get_collisions(&self.rect);
         for col in cols {
             if self.vel.x > 0.0 {
                 self.rect.pos.x = col.x as f32 - h_size - 0.00420; //i dont like the arbitrary subtraction but it fixes a bug
@@ -146,7 +156,7 @@ impl<'a> Entity<'a> {
             }
         }
         for entity in entities.iter() {
-            if self.rect.collide(&entity.rect) {
+            if entity.collidable && self.rect.collide(&entity.rect) {
                 if self.vel.x > 0.0 {
                     self.rect.set_right(entity.rect.get_left());
                 } else {
@@ -156,17 +166,7 @@ impl<'a> Entity<'a> {
         }
 
         self.rect.pos.y += self.vel.y * dt;
-        let corners = [
-            self.rect.pos + Vec2::new(h_size, h_size),
-            self.rect.pos + Vec2::new(-h_size, h_size),
-            self.rect.pos + Vec2::new(-h_size, -h_size),
-            self.rect.pos + Vec2::new(h_size, -h_size),
-        ];
-        let cols = corners
-            .iter()
-            .map(|pos| pos.as_i32())
-            .filter(|pos| tile_map.get_tile(*pos) != 0);
-
+        let cols = tile_map.get_collisions(&self.rect);
         for col in cols {
             if self.vel.y > 0.0 {
                 self.rect.pos.y = col.y as f32 - h_size - 0.00420;
@@ -175,7 +175,7 @@ impl<'a> Entity<'a> {
             }
         }
         for entity in entities.iter() {
-            if self.rect.collide(&entity.rect) {
+            if entity.collidable && self.rect.collide(&entity.rect) {
                 if self.vel.y > 0.0 {
                     self.rect.set_bottom(entity.rect.get_top());
                 } else {
@@ -212,7 +212,7 @@ impl PartialEq for DepthBufferData<'_> {
 impl Eq for DepthBufferData<'_> {}
 
 enum BufferDataType<'a> {
-    Wall,
+    Wall(Direction),
     Sprite { surf: &'a Surface },
 }
 
@@ -224,13 +224,26 @@ fn main() {
     let bullet_image = load_bmp("assets/bullet.bmp").unwrap();
 
     let mut entities = vec![
-        Entity::new(Vec2::new(2.5, 2.5), None, Vec2::new(0.0, 0.0), PLAYER_SIZE),
-        Entity::new(Vec2::new(9.5, 9.5), Some(&image), Vec2::new(0.0, 0.0), 0.5),
+        Entity::new(
+            Vec2::new(2.5, 2.5),
+            None,
+            Vec2::new(0.0, 0.0),
+            PLAYER_SIZE,
+            true,
+        ),
+        Entity::new(
+            Vec2::new(9.5, 9.5),
+            Some(&image),
+            Vec2::new(0.0, 0.0),
+            0.5,
+            true,
+        ),
         Entity::new(
             Vec2::new(12.0, 8.5),
             Some(&bullet_image),
             Vec2::new(0.0, 0.0),
             1.5,
+            true,
         ),
     ];
 
@@ -254,6 +267,7 @@ fn main() {
     let mut now = time::SystemTime::now();
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let dt = now.elapsed().unwrap().as_secs_f32();
+
         now = time::SystemTime::now();
         screen.fill(0);
 
@@ -388,12 +402,16 @@ fn project_entities<'a>(
 
 fn render_depth_buffer(depth_buffer: &mut BinaryHeap<DepthBufferData<'_>>, screen: &mut Surface) {
     for _ in 0..depth_buffer.len() {
-        let buf_data = depth_buffer.pop().unwrap();
+        let buf_data: DepthBufferData<'_> = depth_buffer.pop().unwrap();
         let value = (1.0 / buf_data.distance).min(1.0);
         match buf_data.data_type {
-            BufferDataType::Wall => {
+            BufferDataType::Wall(direction) => {
                 let height = (value * 1.5 * HEIGHT as f32) as i32;
-                let col = val_from_rgb(0, 0, ((value).sqrt() * 255.0) as u32);
+                let value = ((value).sqrt() * 255.0) as u32;
+                let col = match direction {
+                    Direction::Horizontal => val_from_rgb(0, 0, value),
+                    Direction::Vertical => val_from_rgb(0, value, 0),
+                };
                 draw_rect(
                     screen,
                     Vec2::new(buf_data.column, HEIGHT as i32 / 2 - height / 2),
@@ -454,6 +472,7 @@ fn cast_rays(
         }
 
         let mut tile_found = false;
+        let mut direction = Direction::Horizontal;
         let max_distance = 100.0;
         let mut distance = 0.0;
 
@@ -462,10 +481,12 @@ fn cast_rays(
                 map_check.x += step.x;
                 distance = ray_length_1d.x;
                 ray_length_1d.x += ray_unit_step.x;
+                direction = Direction::Vertical;
             } else {
                 map_check.y += step.y;
                 distance = ray_length_1d.y;
                 ray_length_1d.y += ray_unit_step.y;
+                direction = Direction::Horizontal;
             }
 
             if tile_map.get_tile(map_check) == 1 {
@@ -480,7 +501,7 @@ fn cast_rays(
             depth_buffer.push(DepthBufferData {
                 distance,
                 column: index as i32,
-                data_type: BufferDataType::Wall,
+                data_type: BufferDataType::Wall(direction),
             });
             /*
             draw_rect(
@@ -520,6 +541,7 @@ fn handle_input<'a>(window: &Window, dt: f32, entities: &mut Vec<Entity<'a>>, bi
                     Some(bimage),
                     dir * 8.0,
                     0.3,
+                    false,
                 ))
             }
             _ => (),
