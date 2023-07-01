@@ -1,8 +1,8 @@
-use crate::{math::Vec2, surface::Surface, rect::Rect, tile_map::TileMap};
+use crate::{math::Vec2, rect::Rect, surface::Surface, tile_map::TileMap};
 
 pub struct Entity<'a> {
     pub pos: Vec2<f32>,
-    pub sprite: Option<&'a Surface>,
+    pub sprite: Option<&'a str>,
     pub look_angle: f32,
     pub vel: Vec2<f32>,
 
@@ -12,7 +12,7 @@ pub struct Entity<'a> {
 impl<'a> Entity<'a> {
     pub fn new(
         pos: Vec2<f32>,
-        sprite: Option<&'a Surface>,
+        sprite: Option<&'a str>,
         vel: Vec2<f32>,
         size: f32,
         collidable: bool,

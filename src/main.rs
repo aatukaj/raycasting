@@ -31,21 +31,32 @@ const FOV: f32 = 90.0 / 180.0 * PI;
 
 const PLAYER_SIZE: f32 = 0.8;
 
+pub struct AssetCache {
+    assets: HashMap<String, Surface>,
+}
+impl AssetCache {
+    fn new() -> Self {
+        AssetCache {
+            assets: HashMap::new(),
+        }
+    }
+    pub fn load(&mut self, path: &str) -> &Surface {
+        self.assets
+            .entry(path.to_string())
+            .or_insert_with(|| load_bmp(path).unwrap())
+    }
+}
+
 struct Game<'a> {
     window: Window,
     depth_buffer: DepthBufferRenderer<'a>,
     tile_map: TileMap,
     entities: Vec<Entity<'a>>,
     screen: Surface,
-    sprites: HashMap<String, Surface>,
+    sprites: AssetCache,
 }
-impl<'a> Game<'a> {
+impl Game<'_> {
     fn new() -> Self {
-        let mut sprites = HashMap::new();
-        sprites.insert(
-            "player".to_string(),
-            load_bmp("assets/player.bmp").expect("couldnt load"),
-        );
         Game {
             window: Window::new(
                 "Test - ESC to exit",
@@ -63,7 +74,7 @@ impl<'a> Game<'a> {
             entities: Vec::new(),
             tile_map: load_map("assets/map.txt").expect("couldn't load map"),
             screen: Surface::empty(WIDTH, HEIGHT),
-            sprites,
+            sprites: AssetCache::new(),
         }
     }
 }
@@ -71,9 +82,8 @@ impl<'a> Game<'a> {
 fn main() {
     let mut game = Game::new();
 
-    let image = load_bmp("assets/player.bmp").expect("couldnt load");
     let gun_image = load_bmp("assets/gun.bmp").unwrap();
-    let bullet_image = load_bmp("assets/bullet.bmp").unwrap();
+
 
     game.entities = vec![
         Entity::new(
@@ -85,14 +95,14 @@ fn main() {
         ),
         Entity::new(
             Vec2::new(9.5, 9.5),
-            Some(&image),
+            Some("assets/player.bmp"),
             Vec2::new(0.0, 0.0),
             0.5,
             true,
         ),
         Entity::new(
             Vec2::new(12.0, 8.5),
-            Some(&bullet_image),
+            Some("assets/bullet.bmp"),
             Vec2::new(0.0, 0.0),
             1.5,
             true,
@@ -113,7 +123,7 @@ fn main() {
         render_bg(&mut game.screen);
 
         //let m_pos = Vec2::from_tuple(window.get_mouse_pos(MouseMode::Clamp).unwrap()) / 2.0;
-        handle_input(&game.window, dt, &mut game.entities, &bullet_image);
+        handle_input(&game.window, dt, &mut game.entities);
 
         let mut entity = game.entities.swap_remove(0);
         entity.update(dt, &game.tile_map, &game.entities);
@@ -130,15 +140,15 @@ fn main() {
             &mut game.screen,
             &game.entities[0],
         );
-        project_entities(&game.entities, &mut game.depth_buffer.data);
+        project_entities(&mut game);
 
-        game.depth_buffer.render(&mut game.screen);
+        game.depth_buffer.render(&mut game.screen, &mut game.sprites);
 
         game.screen.blit_scaled(
             &gun_image,
             Vec2::new(
                 (WIDTH / 2) as i32,
-                (HEIGHT - gun_image.width / 2 - 5) as i32,
+                (HEIGHT - gun_image.width / 2 - 14) as i32,
             ),
             2.0,
         );
@@ -213,15 +223,12 @@ fn render_bg(screen: &mut Surface) {
     }
 }
 
-fn project_entities<'a>(
-    entities: &Vec<Entity<'a>>,
-    depth_buffer: &mut BinaryHeap<DepthBufferData<'a>>,
-) {
-    let player = &entities[0];
+fn project_entities<'a>(game: &mut Game<'a>) {
+    let player = &game.entities[0];
     let camera_plane = Vec2::new(1.0, 0.0).rotate(player.look_angle);
     let camera_normal = Vec2::new(camera_plane.y, -camera_plane.x);
 
-    for entity in entities.iter() {
+    for entity in game.entities.iter() {
         if let Some(sprite) = entity.sprite {
             let enemy_offset_pos = entity.pos - player.pos;
             let enemy_projected_pos =
@@ -231,7 +238,7 @@ fn project_entities<'a>(
 
             let column = ((angle + FOV) / FOV * WIDTH as f32) as i32 - WIDTH as i32 / 2;
             if enemy_projected_pos.y > -0.1 && angle.abs() < FOV / 1.5 {
-                depth_buffer.push(DepthBufferData {
+                game.depth_buffer.data.push(DepthBufferData {
                     distance: enemy_projected_pos.y,
                     column,
                     data_type: BufferDataType::Sprite { surf: sprite },
@@ -309,16 +316,22 @@ fn cast_rays(
             let distance =
                 distance * (-FOV / 2.0 + (FOV / screen.width as f32) * index as f32).cos();
 
+            let percentage = match direction {
+                Direction::Horizontal => intersection.x.fract(),
+                Direction::Vertical => intersection.y.fract()
+            };
+
+
             depth_buffer.push(DepthBufferData {
                 distance,
                 column: index as i32,
-                data_type: BufferDataType::Wall(direction),
+                data_type: BufferDataType::Wall{direction, percentage},
             });
         }
     }
 }
 
-fn handle_input<'a>(window: &Window, dt: f32, entities: &mut Vec<Entity<'a>>, bimage: &'a Surface) {
+fn handle_input<'a>(window: &Window, dt: f32, entities: &mut Vec<Entity>) {
     let mut vel = Vec2::new(0.0, 0.0);
     let player = &mut entities[0];
     window.get_keys().iter().for_each(|key| match key {
@@ -341,7 +354,7 @@ fn handle_input<'a>(window: &Window, dt: f32, entities: &mut Vec<Entity<'a>>, bi
                 let dir = Vec2::new(0.0, -1.0).rotate(entities[0].look_angle);
                 entities.push(Entity::new(
                     entities[0].pos + dir * 0.5,
-                    Some(bimage),
+                    Some("assets/bullet.bmp"),
                     dir * 8.0,
                     0.3,
                     false,
