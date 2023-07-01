@@ -1,7 +1,6 @@
 use minifb::{Key, Window, WindowOptions};
 use std::collections::{BinaryHeap, HashMap};
 
-use std::error::Error;
 use std::f32::consts::PI;
 use std::time;
 
@@ -14,13 +13,16 @@ use drawing::*;
 mod file;
 use file::*;
 
-use std::fs;
-
 mod depth_buffer;
 use depth_buffer::*;
 
+mod entity;
+use entity::*;
+
 mod rect;
-use rect::*;
+
+mod tile_map;
+use tile_map::*;
 
 const WIDTH: usize = 500;
 const HEIGHT: usize = 300;
@@ -28,113 +30,6 @@ const HEIGHT: usize = 300;
 const FOV: f32 = 90.0 / 180.0 * PI;
 
 const PLAYER_SIZE: f32 = 0.8;
-
-struct TileMap {
-    width: usize,
-    height: usize,
-    buf: Vec<u8>,
-}
-impl TileMap {
-    fn get_tile(&self, pos: Vec2<i32>) -> u8 {
-        if 0 <= pos.x && pos.x < self.width as i32 && 0 <= pos.y && pos.y < self.height as i32 {
-            return self.buf[pos.x as usize + pos.y as usize * self.width];
-        }
-        0
-    }
-    fn get_collisions<'a>(&'a self, rect: &'a Rect) -> Vec<Vec2<i32>> {
-        rect.get_corners()
-            .iter()
-            .map(|pos| pos.as_i32())
-            .filter(|pos| self.get_tile(*pos) != 0)
-            .collect()
-    }
-}
-
-fn load_map(path: &str) -> Result<TileMap, Box<dyn Error>> {
-    let contents = fs::read_to_string(path)?;
-    let lines: Vec<&str> = contents.split_ascii_whitespace().collect();
-    let width = lines[0].len();
-    let height = lines.len();
-    let mut buf = Vec::with_capacity(width * height);
-    for line in lines {
-        for c in line.chars() {
-            buf.push(c.to_digit(10).unwrap() as u8)
-        }
-    }
-    Ok(TileMap { width, height, buf })
-}
-
-struct Entity<'a> {
-    pos: Vec2<f32>,
-    sprite: Option<&'a Surface>,
-    look_angle: f32,
-    vel: Vec2<f32>,
-
-    rect: Rect,
-    collidable: bool,
-}
-impl<'a> Entity<'a> {
-    fn new(
-        pos: Vec2<f32>,
-        sprite: Option<&'a Surface>,
-        vel: Vec2<f32>,
-        size: f32,
-        collidable: bool,
-    ) -> Self {
-        Entity {
-            pos,
-            sprite,
-            look_angle: 0.0,
-            vel,
-            rect: Rect { pos, size },
-            collidable,
-        }
-    }
-
-    fn update(&mut self, dt: f32, tile_map: &TileMap, entities: &[Entity]) {
-        self.rect.pos = self.pos;
-        self.rect.pos.x += self.vel.x * dt;
-        let h_size = self.rect.size / 2.0;
-        let cols = tile_map.get_collisions(&self.rect);
-        for col in cols {
-            if self.vel.x > 0.0 {
-                self.rect.pos.x = col.x as f32 - h_size - 0.00420; //i dont like the arbitrary subtraction but it fixes a bug
-            } else {
-                self.rect.pos.x = col.x as f32 + 1.0 + h_size;
-            }
-        }
-        for entity in entities.iter() {
-            if entity.collidable && self.rect.collide(&entity.rect) {
-                if self.vel.x > 0.0 {
-                    self.rect.set_right(entity.rect.get_left());
-                } else {
-                    self.rect.set_left(entity.rect.get_right());
-                }
-            }
-        }
-
-        self.rect.pos.y += self.vel.y * dt;
-        let cols = tile_map.get_collisions(&self.rect);
-        for col in cols {
-            if self.vel.y > 0.0 {
-                self.rect.pos.y = col.y as f32 - h_size - 0.00420;
-            } else {
-                self.rect.pos.y = col.y as f32 + 1.0 + h_size;
-            }
-        }
-        for entity in entities.iter() {
-            if entity.collidable && self.rect.collide(&entity.rect) {
-                if self.vel.y > 0.0 {
-                    self.rect.set_bottom(entity.rect.get_top());
-                } else {
-                    self.rect.set_top(entity.rect.get_bottom());
-                }
-            }
-        }
-
-        self.pos = self.rect.pos;
-    }
-}
 
 struct Game<'a> {
     window: Window,
@@ -215,31 +110,7 @@ fn main() {
         now = time::SystemTime::now();
         game.screen.fill(0);
 
-        for y in 0..(HEIGHT / 2) {
-            let brigthness = 1.0 - (y as f32 / (HEIGHT / 2) as f32).sqrt();
-            let value = brigthness;
-
-            draw_rect(
-                &mut game.screen,
-                Vec2::new(0, y as i32),
-                Vec2::new(WIDTH as i32, 1),
-                val_from_rgb(
-                    (0x5a as f32 * value) as u32,
-                    (0x69 as f32 * value) as u32,
-                    (0x88 as f32 * value) as u32,
-                ),
-            );
-            draw_rect(
-                &mut game.screen,
-                Vec2::new(0, (HEIGHT - y) as i32),
-                Vec2::new(WIDTH as i32, 1),
-                val_from_rgb(
-                    (0xc0 as f32 * value) as u32,
-                    (0xcb as f32 * value) as u32,
-                    (0xdc as f32 * value) as u32,
-                ),
-            );
-        }
+        render_bg(&mut game.screen);
 
         //let m_pos = Vec2::from_tuple(window.get_mouse_pos(MouseMode::Clamp).unwrap()) / 2.0;
         handle_input(&game.window, dt, &mut game.entities, &bullet_image);
@@ -311,6 +182,34 @@ fn main() {
         game.window
             .update_with_buffer(&game.screen.pixel_buffer, WIDTH, HEIGHT)
             .unwrap();
+    }
+}
+
+fn render_bg(screen: &mut Surface) {
+    for y in 0..(HEIGHT / 2) {
+        let brigthness = 1.0 - (y as f32 / (HEIGHT / 2) as f32).sqrt();
+        let value = brigthness;
+
+        draw_rect(
+            screen,
+            Vec2::new(0, y as i32),
+            Vec2::new(WIDTH as i32, 1),
+            val_from_rgb(
+                (0x5a as f32 * value) as u32,
+                (0x69 as f32 * value) as u32,
+                (0x88 as f32 * value) as u32,
+            ),
+        );
+        draw_rect(
+            screen,
+            Vec2::new(0, (HEIGHT - y) as i32),
+            Vec2::new(WIDTH as i32, 1),
+            val_from_rgb(
+                (0xc0 as f32 * value) as u32,
+                (0xcb as f32 * value) as u32,
+                (0xdc as f32 * value) as u32,
+            ),
+        );
     }
 }
 
