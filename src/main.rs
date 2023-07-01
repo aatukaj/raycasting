@@ -1,11 +1,9 @@
 use minifb::{Key, Window, WindowOptions};
-use std::collections::{BinaryHeap};
+use std::collections::{BinaryHeap, HashMap};
 
 use std::error::Error;
 use std::f32::consts::PI;
 use std::time;
-
-use rand::prelude::*;
 
 mod math;
 use math::*;
@@ -15,21 +13,21 @@ mod drawing;
 use drawing::*;
 mod file;
 use file::*;
-use std::cmp::Ordering;
+
 use std::fs;
+
+mod depth_buffer;
+use depth_buffer::*;
+
+mod rect;
+use rect::*;
 
 const WIDTH: usize = 500;
 const HEIGHT: usize = 300;
-const TILE_SIZE: usize = 10;
 
 const FOV: f32 = 90.0 / 180.0 * PI;
 
 const PLAYER_SIZE: f32 = 0.8;
-
-enum Direction {
-    Horizontal,
-    Vertical,
-}
 
 struct TileMap {
     width: usize,
@@ -49,56 +47,6 @@ impl TileMap {
             .map(|pos| pos.as_i32())
             .filter(|pos| self.get_tile(*pos) != 0)
             .collect()
-    }
-}
-
-#[derive(PartialEq, Debug)]
-struct Rect {
-    pos: Vec2<f32>,
-    size: f32,
-}
-impl Rect {
-    fn get_corners(&self) -> [Vec2<f32>; 4] {
-        let h_size = self.size / 2.0;
-        [
-            self.pos + Vec2::new(h_size, h_size),
-            self.pos + Vec2::new(-h_size, h_size),
-            self.pos + Vec2::new(-h_size, -h_size),
-            self.pos + Vec2::new(h_size, -h_size),
-        ]
-    }
-
-    fn get_top(&self) -> f32 {
-        self.pos.y - self.size / 2.0
-    }
-    fn get_bottom(&self) -> f32 {
-        self.pos.y + self.size / 2.0
-    }
-    fn get_left(&self) -> f32 {
-        self.pos.x - self.size / 2.0
-    }
-    fn get_right(&self) -> f32 {
-        self.pos.x + self.size / 2.0
-    }
-    fn set_top(&mut self, y: f32) {
-        self.pos.y = y + self.size / 2.0;
-    }
-    fn set_bottom(&mut self, y: f32) {
-        self.pos.y = y - self.size / 2.0;
-    }
-    fn set_left(&mut self, x: f32) {
-        self.pos.x = x + self.size / 2.0;
-    }
-    fn set_right(&mut self, x: f32) {
-        self.pos.x = x - self.size / 2.0;
-    }
-    fn collide(&self, other: &Rect) -> bool {
-        let a_min = Vec2::new(self.get_left(), self.get_top());
-        let a_max = Vec2::new(self.get_right(), self.get_bottom());
-        let b_min = Vec2::new(other.get_left(), other.get_top());
-        let b_max = Vec2::new(other.get_bottom(), other.get_right());
-
-        a_min.x < b_max.x && a_max.x > b_min.x && a_min.y < b_max.y && a_max.y > b_min.y
     }
 }
 
@@ -188,42 +136,51 @@ impl<'a> Entity<'a> {
     }
 }
 
-struct DepthBufferData<'a> {
-    distance: f32,
-    column: i32,
-    data_type: BufferDataType<'a>,
+struct Game<'a> {
+    window: Window,
+    depth_buffer: DepthBufferRenderer<'a>,
+    tile_map: TileMap,
+    entities: Vec<Entity<'a>>,
+    screen: Surface,
+    sprites: HashMap<String, Surface>,
 }
-
-impl Ord for DepthBufferData<'_> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.distance.total_cmp(&other.distance)
+impl<'a> Game<'a> {
+    fn new() -> Self {
+        let mut sprites = HashMap::new();
+        sprites.insert(
+            "player".to_string(),
+            load_bmp("assets/player.bmp").expect("couldnt load"),
+        );
+        Game {
+            window: Window::new(
+                "Test - ESC to exit",
+                WIDTH * 2,
+                HEIGHT * 2,
+                WindowOptions {
+                    scale_mode: minifb::ScaleMode::AspectRatioStretch,
+                    ..Default::default()
+                },
+            )
+            .unwrap_or_else(|e| {
+                panic!("{}", e);
+            }),
+            depth_buffer: DepthBufferRenderer::new(WIDTH + 10),
+            entities: Vec::new(),
+            tile_map: load_map("assets/map.txt").expect("couldn't load map"),
+            screen: Surface::empty(WIDTH, HEIGHT),
+            sprites,
+        }
     }
-}
-impl PartialOrd for DepthBufferData<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl PartialEq for DepthBufferData<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.distance == other.distance
-    }
-}
-impl Eq for DepthBufferData<'_> {}
-
-enum BufferDataType<'a> {
-    Wall(Direction),
-    Sprite { surf: &'a Surface },
 }
 
 fn main() {
-    let tile_map = load_map("assets/map.txt").unwrap();
-    let mut screen = Surface::empty(WIDTH, HEIGHT);
+    let mut game = Game::new();
+
     let image = load_bmp("assets/player.bmp").expect("couldnt load");
     let gun_image = load_bmp("assets/gun.bmp").unwrap();
     let bullet_image = load_bmp("assets/bullet.bmp").unwrap();
 
-    let mut entities = vec![
+    game.entities = vec![
         Entity::new(
             Vec2::new(2.5, 2.5),
             None,
@@ -247,81 +204,66 @@ fn main() {
         ),
     ];
 
-    let mut window = Window::new(
-        "Test - ESC to exit",
-        WIDTH * 2,
-        HEIGHT * 2,
-        WindowOptions {
-            scale_mode: minifb::ScaleMode::AspectRatioStretch,
-            ..Default::default()
-        },
-    )
-    .unwrap_or_else(|e| {
-        panic!("{}", e);
-    });
-
     // Limit to max ~60 fps update rate
-    window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
-    let mut depth_buffer: BinaryHeap<DepthBufferData> = BinaryHeap::with_capacity(WIDTH + 10);
+    game.window
+        .limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
     let mut now = time::SystemTime::now();
-    while window.is_open() && !window.is_key_down(Key::Escape) {
+    while game.window.is_open() && !game.window.is_key_down(Key::Escape) {
         let dt = now.elapsed().unwrap().as_secs_f32();
 
         now = time::SystemTime::now();
-        screen.fill(0);
+        game.screen.fill(0);
 
         for y in 0..(HEIGHT / 2) {
             let brigthness = 1.0 - (y as f32 / (HEIGHT / 2) as f32).sqrt();
-            let val = (brigthness * 255.0) as u32;
+            let value = brigthness;
 
             draw_rect(
-                &mut screen,
+                &mut game.screen,
                 Vec2::new(0, y as i32),
                 Vec2::new(WIDTH as i32, 1),
-                val_from_rgb(val, val, val),
+                val_from_rgb(
+                    (0x5a as f32 * value) as u32,
+                    (0x69 as f32 * value) as u32,
+                    (0x88 as f32 * value) as u32,
+                ),
             );
             draw_rect(
-                &mut screen,
+                &mut game.screen,
                 Vec2::new(0, (HEIGHT - y) as i32),
                 Vec2::new(WIDTH as i32, 1),
-                val_from_rgb(val, val, val),
+                val_from_rgb(
+                    (0xc0 as f32 * value) as u32,
+                    (0xcb as f32 * value) as u32,
+                    (0xdc as f32 * value) as u32,
+                ),
             );
         }
 
         //let m_pos = Vec2::from_tuple(window.get_mouse_pos(MouseMode::Clamp).unwrap()) / 2.0;
-        handle_input(&window, dt, &mut entities, &bullet_image);
+        handle_input(&game.window, dt, &mut game.entities, &bullet_image);
 
-        let mut entity = entities.swap_remove(0);
-        entity.update(dt, &tile_map, &entities);
-        entities.push(entity);
-        for i in 0..(entities.len() - 1) {
-            let mut entity = entities.swap_remove(i);
-            entity.update(dt, &tile_map, &entities);
-            entities.push(entity);
+        let mut entity = game.entities.swap_remove(0);
+        entity.update(dt, &game.tile_map, &game.entities);
+        game.entities.push(entity);
+        for i in 0..(game.entities.len() - 1) {
+            let mut entity = game.entities.swap_remove(i);
+            entity.update(dt, &game.tile_map, &game.entities);
+            game.entities.push(entity);
         }
 
-        cast_rays(&tile_map, &mut depth_buffer, &mut screen, &entities[0]);
-        project_entities(&entities, &mut depth_buffer);
-
-        /*
-        draw_line(
-            &mut screen,
-            (player.pos * TILE_SIZE as f32).as_i32(),
-            ((player.pos + camera_plane) * TILE_SIZE as f32).as_i32(),
-            0xff,
+        cast_rays(
+            &game.tile_map,
+            &mut game.depth_buffer.data,
+            &mut game.screen,
+            &game.entities[0],
         );
-        draw_line(
-            &mut screen,
-            (player.pos * TILE_SIZE as f32).as_i32(),
-            ((player.pos + camera_normal) * TILE_SIZE as f32).as_i32(),
-            0xffff,
-        );
-        */
+        project_entities(&game.entities, &mut game.depth_buffer.data);
 
-        render_depth_buffer(&mut depth_buffer, &mut screen);
+        game.depth_buffer.render(&mut game.screen);
 
-        screen.blit_scaled(
+        game.screen.blit_scaled(
             &gun_image,
             Vec2::new(
                 (WIDTH / 2) as i32,
@@ -366,8 +308,8 @@ fn main() {
             ((player.pos.y - player.size / 2.0) * TILE_SIZE as f32) as i32,
         );
         */
-        window
-            .update_with_buffer(&screen.pixel_buffer, WIDTH, HEIGHT)
+        game.window
+            .update_with_buffer(&game.screen.pixel_buffer, WIDTH, HEIGHT)
             .unwrap();
     }
 }
@@ -400,37 +342,6 @@ fn project_entities<'a>(
     }
 }
 
-fn render_depth_buffer(depth_buffer: &mut BinaryHeap<DepthBufferData<'_>>, screen: &mut Surface) {
-    for _ in 0..depth_buffer.len() {
-        let buf_data: DepthBufferData<'_> = depth_buffer.pop().unwrap();
-        let value = (1.0 / buf_data.distance).min(1.0);
-        match buf_data.data_type {
-            BufferDataType::Wall(direction) => {
-                let height = (value * 1.5 * HEIGHT as f32) as i32;
-                let value = ((value).sqrt() * 255.0) as u32;
-                let col = match direction {
-                    Direction::Horizontal => val_from_rgb(0, 0, value),
-                    Direction::Vertical => val_from_rgb(0, value, 0),
-                };
-                draw_rect(
-                    screen,
-                    Vec2::new(buf_data.column, HEIGHT as i32 / 2 - height / 2),
-                    Vec2::new(1, height),
-                    col,
-                );
-            }
-            BufferDataType::Sprite { surf } => {
-                screen.blit_scaled(
-                    surf,
-                    Vec2::new(buf_data.column, HEIGHT as i32 / 2),
-                    1.0 / buf_data.distance * 20.0,
-                );
-            }
-        }
-    }
-    depth_buffer.clear();
-}
-
 fn cast_rays(
     tile_map: &TileMap,
     depth_buffer: &mut BinaryHeap<DepthBufferData<'_>>,
@@ -439,7 +350,7 @@ fn cast_rays(
 ) {
     let m_dir: Vec2<f32> = Vec2::new(0.0, -1.0).rotate(player.look_angle);
     let ray_start = player.pos;
-    let rays: Vec<Vec2<f32>> = (0..WIDTH)
+    let rays: Vec<Vec2<f32>> = (0..screen.width)
         .map(|i| {
             let a = (i as f32 / WIDTH as f32 - 0.5) * FOV;
             m_dir.rotate(a)
@@ -496,21 +407,14 @@ fn cast_rays(
         if tile_found {
             let intersection = ray_start + ray_dir * distance;
 
-            let distance = distance * (-FOV / 2.0 + (FOV / WIDTH as f32) * index as f32).cos();
+            let distance =
+                distance * (-FOV / 2.0 + (FOV / screen.width as f32) * index as f32).cos();
 
             depth_buffer.push(DepthBufferData {
                 distance,
                 column: index as i32,
                 data_type: BufferDataType::Wall(direction),
             });
-            /*
-            draw_rect(
-                screen,
-                (intersection * TILE_SIZE as f32).as_i32() - Vec2::new(4, 4),
-                Vec2::new(7, 7),
-                0xFFFF,
-            );
-            */
         }
     }
 }
