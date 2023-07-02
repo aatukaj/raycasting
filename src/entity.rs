@@ -1,5 +1,5 @@
 use crate::{
-    math::Vec2, rect::Rect, surface::Surface, tile_map::TileMap, BasicCollisionComponent,
+    math::Vec2, rect::Rect, surface::Surface, tile_map::TileMap,
     Component, Game,
 };
 
@@ -11,8 +11,8 @@ pub struct Entity<'a> {
 
     pub rect: Rect,
     pub collidable: bool,
-    components: Vec<Box<dyn Component>>,
-    pub alive: bool
+    components: Option<Vec<Box<dyn Component>>>,
+    pub alive: bool,
 }
 impl<'a> Entity<'a> {
     pub fn new(
@@ -21,7 +21,7 @@ impl<'a> Entity<'a> {
         vel: Vec2<f32>,
         size: f32,
         collidable: bool,
-        components: Vec<Box<dyn Component>>
+        components: Vec<Box<dyn Component>>,
     ) -> Self {
         Entity {
             pos,
@@ -30,16 +30,18 @@ impl<'a> Entity<'a> {
             vel,
             rect: Rect { pos, size },
             collidable,
-            components,
-            alive: true
+            components: Some(components),
+            alive: true,
         }
     }
 
     pub fn update(&mut self, dt: f32, game: &mut Game) {
-        for i in (0..=0).chain(0..(self.components.len() - 1)) {
-            let component = self.components.swap_remove(i);
-            component.update(self, game, dt);
-            self.components.push(component);
+        let components = self.components.take();
+        if let Some(components) = components {
+            for component in components.iter() {
+                component.update(self, game, dt);
+            }
+            self.components = Some(components);
         }
     }
 }
