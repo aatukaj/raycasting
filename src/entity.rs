@@ -1,4 +1,7 @@
-use crate::{math::Vec2, rect::Rect, surface::Surface, tile_map::TileMap};
+use crate::{
+    math::Vec2, rect::Rect, surface::Surface, tile_map::TileMap, BasicCollisionComponent,
+    Component, Game,
+};
 
 pub struct Entity<'a> {
     pub pos: Vec2<f32>,
@@ -6,8 +9,10 @@ pub struct Entity<'a> {
     pub look_angle: f32,
     pub vel: Vec2<f32>,
 
-    rect: Rect,
-    collidable: bool,
+    pub rect: Rect,
+    pub collidable: bool,
+    components: Vec<Box<dyn Component>>,
+    pub alive: bool
 }
 impl<'a> Entity<'a> {
     pub fn new(
@@ -16,6 +21,7 @@ impl<'a> Entity<'a> {
         vel: Vec2<f32>,
         size: f32,
         collidable: bool,
+        components: Vec<Box<dyn Component>>
     ) -> Self {
         Entity {
             pos,
@@ -24,50 +30,16 @@ impl<'a> Entity<'a> {
             vel,
             rect: Rect { pos, size },
             collidable,
+            components,
+            alive: true
         }
     }
 
-    pub fn update(&mut self, dt: f32, tile_map: &TileMap, entities: &[Entity]) {
-        self.rect.pos = self.pos;
-        self.rect.pos.x += self.vel.x * dt;
-        let h_size = self.rect.size / 2.0;
-        let cols = tile_map.get_collisions(&self.rect);
-        for col in cols {
-            if self.vel.x > 0.0 {
-                self.rect.pos.x = col.x as f32 - h_size - 0.00420; //i dont like the arbitrary subtraction but it fixes a bug
-            } else {
-                self.rect.pos.x = col.x as f32 + 1.0 + h_size;
-            }
+    pub fn update(&mut self, dt: f32, game: &mut Game) {
+        for i in (0..=0).chain(0..(self.components.len() - 1)) {
+            let component = self.components.swap_remove(i);
+            component.update(self, game, dt);
+            self.components.push(component);
         }
-        for entity in entities.iter() {
-            if entity.collidable && self.rect.collide(&entity.rect) {
-                if self.vel.x > 0.0 {
-                    self.rect.set_right(entity.rect.get_left());
-                } else {
-                    self.rect.set_left(entity.rect.get_right());
-                }
-            }
-        }
-
-        self.rect.pos.y += self.vel.y * dt;
-        let cols = tile_map.get_collisions(&self.rect);
-        for col in cols {
-            if self.vel.y > 0.0 {
-                self.rect.pos.y = col.y as f32 - h_size - 0.00420;
-            } else {
-                self.rect.pos.y = col.y as f32 + 1.0 + h_size;
-            }
-        }
-        for entity in entities.iter() {
-            if entity.collidable && self.rect.collide(&entity.rect) {
-                if self.vel.y > 0.0 {
-                    self.rect.set_bottom(entity.rect.get_top());
-                } else {
-                    self.rect.set_top(entity.rect.get_bottom());
-                }
-            }
-        }
-
-        self.pos = self.rect.pos;
     }
 }

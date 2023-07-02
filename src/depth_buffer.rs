@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     drawing::{draw_rect, val_from_rgb},
-    math::Vec2,
+    math::{set_value_brightness, Vec2},
     surface::Surface,
     AssetCache,
 };
@@ -60,27 +60,33 @@ impl DepthBufferRenderer<'_> {
     pub fn render(&mut self, screen: &mut Surface, sprites: &mut AssetCache) {
         for _ in 0..self.data.len() {
             let buf_data: DepthBufferData<'_> = self.data.pop().unwrap();
-            let value = (1.0 / buf_data.distance).min(1.0);
+            let value = 1.0 / buf_data.distance;
+
+            let brightness = (value.sqrt() + 0.2).min(1.0);
             match buf_data.data_type {
                 BufferDataType::Wall {
                     direction,
                     percentage,
                 } => {
-                    let wall_tex = sprites.load(match direction {
+                    let wall_tex = sprites.load_bmp(match direction {
                         Direction::Horizontal => "assets/bricksmall.bmp",
-                        Direction::Vertical => "assets/bricksmall2.bmp"
+                        Direction::Vertical => "assets/bricksmall2.bmp",
                     });
 
-                    let height = (value * 1.5 * screen.height as f32) as i32;
+                    let height = (value * 1.0 * screen.height as f32) as i32;
                     let scale = height as f32 / wall_tex.height as f32;
 
                     let offset = screen.height as i32 / 2 - height / 2;
                     let wall_x = (wall_tex.width as f32 * percentage) as usize;
                     let x = buf_data.column as u32;
                     for y in 0..height {
-                        let value = wall_tex.pixel_buffer
+                        let col = wall_tex.pixel_buffer
                             [wall_x + (y as f32 / scale) as usize * wall_tex.width];
-                        screen.set_pixel(x, (y + offset) as u32, value);
+                        let _ = screen.set_pixel(
+                            x,
+                            (y + offset) as u32,
+                            set_value_brightness(col, brightness),
+                        );
                     }
 
                     /*
@@ -107,7 +113,7 @@ impl DepthBufferRenderer<'_> {
                 }
                 BufferDataType::Sprite { surf } => {
                     screen.blit_scaled(
-                        sprites.load(surf),
+                        sprites.load_bmp(surf),
                         Vec2::new(buf_data.column, screen.height as i32 / 2),
                         1.0 / buf_data.distance * 20.0,
                     );
