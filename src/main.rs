@@ -90,12 +90,14 @@ pub struct Game<'a> {
     pub window: Window,
     pub renderer: DepthBufferRenderer<'a>,
     pub tile_map: TileMap,
-    pub entities: Vec<Entity<'a>>,
+
     pub screen: Surface,
     pub assets: AssetCache,
     pub audio_manager: AudioManager,
+    pub entities: HashMap<u32, Entity<'a>>,
+    next_id: u32,
 }
-impl Game<'_> {
+impl<'a> Game<'a> {
     fn new() -> Self {
         Game {
             window: Window::new(
@@ -111,13 +113,18 @@ impl Game<'_> {
                 panic!("{}", e);
             }),
             renderer: DepthBufferRenderer::new(WIDTH + 10),
-            entities: Vec::new(),
+            entities: HashMap::new(),
             tile_map: load_map("assets/map.txt").expect("couldn't load map"),
             screen: Surface::empty(WIDTH, HEIGHT),
             assets: AssetCache::new(),
             audio_manager: AudioManager::<DefaultBackend>::new(AudioManagerSettings::default())
                 .unwrap(),
+            next_id: 0,
         }
+    }
+    fn add_entity(&mut self, entity: Entity<'a>) {
+        self.entities.insert(self.next_id, entity);
+        self.next_id += 1;
     }
 }
 
@@ -125,36 +132,31 @@ fn main() {
     SimpleLogger::new().init().unwrap();
     let mut game = Game::new();
 
-    game.entities = vec![
-        Entity::new(
-            Vec2::new(2.5, 2.5),
-            Some("assets/player.bmp"),
-            Vec2::new(0.0, 0.0),
-            PLAYER_SIZE,
-            true,
-            vec![
-                Box::new(BasicCollisionComponent),
-                Box::new(PlayerInputComponent),
-                Box::new(CameraComponent),
-            ],
-        ),
-        Entity::new(
-            Vec2::new(9.5, 9.5),
-            Some("assets/player.bmp"),
-            Vec2::new(0.0, 0.0),
-            0.5,
-            true,
-            vec![Box::new(BasicCollisionComponent), Box::new(BasicAiComponent)],
-        ),
-        Entity::new(
-            Vec2::new(12.0, 8.5),
-            Some("assets/bullet.bmp"),
-            Vec2::new(0.0, 0.0),
-            1.5,
-            true,
-            vec![Box::new(BasicCollisionComponent)],
-        ),
-    ];
+    game.add_entity(Entity::new(
+        Vec2::new(2.5, 2.5),
+        Some("assets/player.bmp"),
+        Vec2::new(0.0, 0.0),
+        PLAYER_SIZE,
+        true,
+        vec![
+            Box::new(BasicCollisionComponent),
+            Box::new(PlayerInputComponent),
+            Box::new(CameraComponent),
+        ],
+    ));
+
+    game.add_entity(Entity::new(
+        Vec2::new(9.5, 9.5),
+        Some("assets/player.bmp"),
+        Vec2::new(0.0, 0.0),
+        0.8,
+        true,
+        vec![
+            Box::new(BasicCollisionComponent),
+            Box::new(BasicAiComponent),
+        ],
+    ));
+
 
     // Limit to max ~60 fps update rate
     game.window
@@ -171,12 +173,14 @@ fn main() {
 
         //let m_pos = Vec2::from_tuple(window.get_mouse_pos(MouseMode::Clamp).unwrap()) / 2.0;
 
-        for i in (0..=0).chain(0..(game.entities.len() - 1)) {
-            let mut entity = game.entities.swap_remove(i.min(game.entities.len() - 1));
+        let keys = game.entities.keys().map(|k| *k).collect::<Vec<_>>();
+        for key in keys {
+            let mut entity = game.entities.remove(&key).unwrap();
             entity.update(dt, &mut game);
             if entity.alive {
-                game.entities.push(entity);
+                game.entities.insert(key, entity);
             }
+            
         }
 
         game.renderer.render(&mut game.screen, &mut game.assets);

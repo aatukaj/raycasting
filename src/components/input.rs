@@ -1,6 +1,6 @@
 use minifb::Key;
 
-use crate::{entity::Entity, Game, math::Vec2};
+use crate::{entity::Entity, math::Vec2, Game};
 
 use super::{Component, ProjectileCollisionComponent};
 
@@ -27,8 +27,9 @@ impl Component for PlayerInputComponent {
             .for_each(|key| match key {
                 Key::Space => {
                     let dir = Vec2::new(0.0, -1.0).rotate(player.look_angle);
-                    game.entities.push(Entity::new(
-                        player.pos + dir * 0.5,
+
+                    game.add_entity(Entity::new(
+                        player.rect.pos + dir * 0.5,
                         Some("assets/bullet.bmp"),
                         dir * 8.0,
                         0.3,

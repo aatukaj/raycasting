@@ -8,10 +8,10 @@ impl CameraComponent {
         let camera_plane = Vec2::new(1.0, 0.0).rotate(entity.look_angle);
         let camera_normal = Vec2::new(camera_plane.y, -camera_plane.x);
         
-        for other in game.entities.iter() {
+        for other in game.entities.values() {
 
             if let Some(sprite) = other.sprite {
-                let enemy_offset_pos = other.pos - entity.pos;
+                let enemy_offset_pos = other.rect.pos - entity.rect.pos;
                 let enemy_projected_pos =
                     camera_plane * enemy_offset_pos.x + camera_normal * enemy_offset_pos.y;
 
@@ -32,7 +32,7 @@ impl CameraComponent {
 
     fn cast_rays(&self, entity: &Entity, game: &mut Game) {
         let m_dir: Vec2<f32> = Vec2::new(0.0, -1.0).rotate(entity.look_angle);
-        let ray_start = entity.pos;
+        let ray_start = entity.rect.pos;
         let rays: Vec<Vec2<f32>> = (0..game.screen.width)
             .map(|i| {
                 let a = (i as f32 / game.screen.width as f32 - 0.5) * FOV;

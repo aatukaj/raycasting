@@ -1,7 +1,7 @@
 use crate::math::Vec2;
 
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Rect {
     pub pos: Vec2<f32>,
     pub size: f32,
@@ -42,11 +42,9 @@ impl Rect {
         self.pos.x = x - self.size / 2.0;
     }
     pub fn collide(&self, other: &Rect) -> bool {
-        let a_min = Vec2::new(self.get_left(), self.get_top());
-        let a_max = Vec2::new(self.get_right(), self.get_bottom());
-        let b_min = Vec2::new(other.get_left(), other.get_top());
-        let b_max = Vec2::new(other.get_bottom(), other.get_right());
-
-        a_min.x < b_max.x && a_max.x > b_min.x && a_min.y < b_max.y && a_max.y > b_min.y
+        let tot_size = (self.size + other.size) / 2.0;
+        (self.pos.x - other.pos.x).abs() <  tot_size && (self.pos.y - other.pos.y).abs() < tot_size
     }
 }
+
+

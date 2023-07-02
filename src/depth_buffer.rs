@@ -89,27 +89,7 @@ impl DepthBufferRenderer<'_> {
                         );
                     }
 
-                    /*
-                    let value = (value).sqrt();
-                    let col = match direction {
-                        Direction::Horizontal => val_from_rgb(
-                            (0x12 as f32 * value) as u32,
-                            (0x4e as f32 * value) as u32,
-                            (0x89 as f32 * value) as u32,
-                        ),
-                        Direction::Vertical => val_from_rgb(
-                            (0x63 as f32 * value) as u32,
-                            (0xc7 as f32 * value) as u32,
-                            (0x4d as f32 * value) as u32,
-                        ),
-                    };
-                    draw_rect(
-                        screen,
-                        Vec2::new(buf_data.column, screen.height as i32 / 2 - height / 2),
-                        Vec2::new(1, height),
-                        col,
-                    );
-                    */
+        
                 }
                 BufferDataType::Sprite { surf } => {
                     screen.blit_scaled(

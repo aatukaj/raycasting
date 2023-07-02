@@ -4,7 +4,7 @@ use crate::{
 };
 
 pub struct Entity<'a> {
-    pub pos: Vec2<f32>,
+
     pub sprite: Option<&'a str>,
     pub look_angle: f32,
     pub vel: Vec2<f32>,
@@ -24,7 +24,6 @@ impl<'a> Entity<'a> {
         components: Vec<Box<dyn Component>>,
     ) -> Self {
         Entity {
-            pos,
             sprite,
             look_angle: 0.0,
             vel,
