@@ -43,9 +43,9 @@ const FOV: f32 = 90.0 / 180.0 * PI;
 const PLAYER_SIZE: f32 = 0.8;
 
 //bit flags
-const PLAYER: u32 = 0b1;
-const ENEMY: u32 = 0b1 << 1;
-const PROJECTILE: u32 = 0b1 << 2;
+const PLAYER: u32 = 1;
+const ENEMY: u32 = 1 << 1;
+const PROJECTILE: u32 = 1 << 2;
 
 pub struct AssetCache {
     sprites: HashMap<String, Surface>,
@@ -71,6 +71,7 @@ impl AssetCache {
                 }
             })
     }
+
     pub fn load_sound(&mut self, path: &str) -> &StaticSoundData {
         self.sounds.entry(path.to_string()).or_insert_with(|| {
             StaticSoundData::from_file(path, StaticSoundSettings::default()).unwrap_or_else(|err| {
@@ -129,7 +130,13 @@ impl<'a> Game<'a> {
 }
 
 fn main() {
-    SimpleLogger::new().init().unwrap();
+    SimpleLogger::new()
+        .with_colors(true)
+        .with_level(log::LevelFilter::Off)
+        .with_module_level("raycasting", log::LevelFilter::Trace)
+        .init()
+        .unwrap();
+
     let mut game = Game::new();
 
     game.add_entity(Entity::new(
@@ -157,7 +164,6 @@ fn main() {
         ],
     ));
 
-
     // Limit to max ~60 fps update rate
     game.window
         .limit_update_rate(Some(std::time::Duration::from_micros(16600)));
@@ -180,7 +186,6 @@ fn main() {
             if entity.alive {
                 game.entities.insert(key, entity);
             }
-            
         }
 
         game.renderer.render(&mut game.screen, &mut game.assets);
@@ -194,43 +199,7 @@ fn main() {
             ),
             2.0,
         );
-        /*
-        for (i, &val) in tile_map.buf.iter().enumerate() {
-            if val == 1 {
-                draw_rect(
-                    &mut screen,
-                    Vec2::new(
-                        (i % tile_map.width * TILE_SIZE) as i32,
-                        (i / tile_map.width * TILE_SIZE) as i32,
-                    ),
-                    Vec2::new(TILE_SIZE as i32, TILE_SIZE as i32),
-                    0xFF,
-                )
-            }
-        }
-        for x in 0..tile_map.width {
-            draw_rect(
-                &mut screen,
-                Vec2::new((x * TILE_SIZE) as i32, 0),
-                Vec2::new(1, (TILE_SIZE * tile_map.height) as i32),
-                0xffffff,
-            );
-        }
-        for y in 0..tile_map.height {
-            draw_rect(
-                &mut screen,
-                Vec2::new(0, (y * TILE_SIZE) as i32),
-                Vec2::new((TILE_SIZE * tile_map.width) as i32, 1),
-                0xffffff,
-            );
-        }
-        let player = &entities[0];
-        screen.blit(
-            &image,
-            ((player.pos.x - player.size / 2.0) * TILE_SIZE as f32) as i32,
-            ((player.pos.y - player.size / 2.0) * TILE_SIZE as f32) as i32,
-        );
-        */
+
         game.window
             .update_with_buffer(&game.screen.pixel_buffer, WIDTH, HEIGHT)
             .unwrap();

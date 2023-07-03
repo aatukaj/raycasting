@@ -12,5 +12,7 @@ opt-level = 3
 minifb = "0.24.0"
 rand = "0.8.5"
 kira = "0.8.4"
-simple_logger = "4.2.0"
+simple_logger = { version = "4.2.0", default_features = false, features = [
+    "colors",
+] }
 log = "0.4.19"

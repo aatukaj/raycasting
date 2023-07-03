@@ -48,7 +48,8 @@ impl Surface {
         for y in offset_y.max(0)..(offset_y + scaled_height).min(self.height as i32) {
             for x in offset_x.max(0)..(offset_x + scaled_width).min(self.width as i32) {
                 let index_self = x as usize + y as usize * self.width;
-                let index_source = ((x - offset_x) as f32 / scale) as usize + ((y - offset_y) as f32 / scale) as usize * source.width;
+                let index_source = ((x - offset_x) as f32 / scale) as usize
+                    + ((y - offset_y) as f32 / scale) as usize * source.width;
                 let val = source.pixel_buffer[index_source];
                 if val != 0 {
                     self.pixel_buffer[index_self] = val;
@@ -57,4 +58,3 @@ impl Surface {
         }
     }
 }
-

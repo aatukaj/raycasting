@@ -4,7 +4,7 @@ use crate::{entity::Entity, Game};
 
 
 pub trait Component {
-    fn update(&self, entity: &mut Entity, game: &mut Game, dt: f32);
+    fn update<'a>(&mut self, entity: &mut Entity<'a>, game: &mut Game<'a>, dt: f32);
 }
 
 pub mod collision;
@@ -15,3 +15,5 @@ pub mod input;
 pub use input::*;
 pub mod ai;
 pub use ai::*;
+pub mod anim;
+pub use anim::*;

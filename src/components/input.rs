@@ -5,8 +5,8 @@ use crate::{entity::Entity, math::Vec2, Game};
 use super::{Component, ProjectileCollisionComponent};
 
 pub struct PlayerInputComponent;
-impl Component for PlayerInputComponent {
-    fn update(&self, entity: &mut Entity, game: &mut Game, dt: f32) {
+impl Component  for PlayerInputComponent {
+    fn update<'a>(&mut self, entity: &mut Entity<'a>, game: &mut Game, dt: f32) {
         let mut vel = Vec2::new(0.0, 0.0);
         let player = entity;
         game.window.get_keys().iter().for_each(|key| match key {

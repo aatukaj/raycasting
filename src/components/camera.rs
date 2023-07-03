@@ -112,7 +112,7 @@ impl CameraComponent {
 }
 
 impl Component for CameraComponent {
-    fn update(&self, entity: &mut Entity, game: &mut Game, dt: f32) {
+    fn update<'a>(&mut self, entity: &mut Entity, game: &mut Game, dt: f32) {
         self.cast_rays(entity, game);
         self.project_entities(entity, game);
     }

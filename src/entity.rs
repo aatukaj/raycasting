@@ -34,10 +34,10 @@ impl<'a> Entity<'a> {
         }
     }
 
-    pub fn update(&mut self, dt: f32, game: &mut Game) {
+    pub fn update(&mut self, dt: f32, game: &mut Game<'a>) {
         let components = self.components.take();
-        if let Some(components) = components {
-            for component in components.iter() {
+        if let Some(mut components) = components {
+            for component in components.iter_mut() {
                 component.update(self, game, dt);
             }
             self.components = Some(components);

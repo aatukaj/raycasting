@@ -1,9 +1,11 @@
-use crate::{entity::Entity, Game};
+use crate::{entity::Entity, math::Vec2, Game};
 
-use super::Component;
+use super::{AnimationComponent, Component};
 pub struct BasicCollisionComponent;
 impl Component for BasicCollisionComponent {
-    fn update(&self, entity: &mut Entity, game: &mut Game, dt: f32) {
+    fn update<'a>(&mut self, entity: &mut Entity, game: &mut Game, dt: f32)
+
+    {
         let old_rect = entity.rect.clone();
 
         entity.rect.pos.x += entity.vel.x * dt;
@@ -17,12 +19,15 @@ impl Component for BasicCollisionComponent {
             }
         }
 
-
         for other in game.entities.values() {
             if other.collidable && entity.rect.collide(&other.rect) {
-                if entity.rect.get_right() >= other.rect.get_left() && old_rect.get_right() <= other.rect.get_left(){
+                if entity.rect.get_right() >= other.rect.get_left()
+                    && old_rect.get_right() <= other.rect.get_left()
+                {
                     entity.rect.set_right(other.rect.get_left());
-                } else if entity.rect.get_left() <= other.rect.get_right() && old_rect.get_left() >= other.rect.get_right() {
+                } else if entity.rect.get_left() <= other.rect.get_right()
+                    && old_rect.get_left() >= other.rect.get_right()
+                {
                     entity.rect.set_left(other.rect.get_right());
                 }
             }
@@ -40,10 +45,13 @@ impl Component for BasicCollisionComponent {
 
         for other in game.entities.values() {
             if other.collidable && entity.rect.collide(&other.rect) {
-                if entity.rect.get_bottom() >= other.rect.get_top() && old_rect.get_bottom() <= other.rect.get_top(){
+                if entity.rect.get_bottom() >= other.rect.get_top()
+                    && old_rect.get_bottom() <= other.rect.get_top()
+                {
                     entity.rect.set_bottom(other.rect.get_top());
-                    
-                } else if entity.rect.get_top() <= other.rect.get_bottom() && old_rect.get_top() >= other.rect.get_bottom() {
+                } else if entity.rect.get_top() <= other.rect.get_bottom()
+                    && old_rect.get_top() >= other.rect.get_bottom()
+                {
                     entity.rect.set_top(other.rect.get_bottom());
                 }
             }
@@ -52,23 +60,55 @@ impl Component for BasicCollisionComponent {
 }
 pub struct ProjectileCollisionComponent;
 impl Component for ProjectileCollisionComponent {
-    fn update(&self, entity: &mut Entity, game: &mut Game, dt: f32) {
+    fn update<'a>(&mut self, entity: &mut Entity, game: &mut Game<'a>, dt: f32)
+  
+    {
         entity.rect.pos = entity.rect.pos + entity.vel * dt;
-        let explosion_sound = game
-            .assets
-            .load_sound("assets/sounds/explosionCrunch_000.ogg")
-            .clone();
 
+        let mut collided = false;
         for other in game.entities.values() {
             if other.rect.collide(&entity.rect) {
-                entity.alive = false;
-                game.audio_manager.play(explosion_sound).unwrap();
-                return;
+                collided = true;
+                break;
             }
         }
         if !game.tile_map.get_collisions(&entity.rect).is_empty() {
+            collided = true;
+        }
+        if collided {
+            let explosion_sound = game
+                .assets
+                .load_sound("assets/sounds/explosionCrunch_000.ogg")
+                .clone();
             entity.alive = false;
             game.audio_manager.play(explosion_sound).unwrap();
+            let images = vec![
+                    "assets/explosion/explosion1.bmp",
+                    "assets/explosion/explosion2.bmp",
+                    "assets/explosion/explosion3.bmp",
+                    "assets/explosion/explosion4.bmp",
+                    "assets/explosion/explosion5.bmp",
+                    "assets/explosion/explosion6.bmp",
+                    "assets/explosion/explosion7.bmp",
+                    "assets/explosion/explosion8.bmp",
+                    "assets/explosion/explosion9.bmp",
+                    "assets/explosion/explosion10.bmp",
+                    "assets/explosion/explosion11.bmp",
+                    "assets/explosion/explosion12.bmp",
+                ];
+            game.add_entity(Entity::new(
+                entity.rect.pos,
+                None,
+                Vec2::new(0.0, 0.0),
+                0.0,
+                false,
+                
+                vec![Box::new(AnimationComponent {
+                    images,
+                    time_per_frame: 0.05,
+                    cur_time: 0.0,
+                })],
+            ))
         }
     }
 }
