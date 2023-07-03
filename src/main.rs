@@ -123,7 +123,8 @@ impl<'a> Game<'a> {
             next_id: 0,
         }
     }
-    fn add_entity(&mut self, entity: Entity<'a>) {
+    fn add_entity(&mut self, mut entity: Entity<'a>) {
+        entity.id = self.next_id;
         self.entities.insert(self.next_id, entity);
         self.next_id += 1;
     }
@@ -209,7 +210,7 @@ fn main() {
 fn render_bg(screen: &mut Surface) {
     for y in 0..(HEIGHT / 2) {
         let brigthness = 1.0 - (y as f32 / (HEIGHT / 2) as f32).sqrt();
-        let value = brigthness;
+        let value = (brigthness + 0.2).min(1.0);
 
         draw_rect(
             screen,

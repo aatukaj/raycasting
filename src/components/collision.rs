@@ -3,9 +3,7 @@ use crate::{entity::Entity, math::Vec2, Game};
 use super::{AnimationComponent, Component};
 pub struct BasicCollisionComponent;
 impl Component for BasicCollisionComponent {
-    fn update<'a>(&mut self, entity: &mut Entity, game: &mut Game, dt: f32)
-
-    {
+    fn update<'a>(&mut self, entity: &mut Entity, game: &mut Game, dt: f32) {
         let old_rect = entity.rect.clone();
 
         entity.rect.pos.x += entity.vel.x * dt;
@@ -58,16 +56,21 @@ impl Component for BasicCollisionComponent {
         }
     }
 }
-pub struct ProjectileCollisionComponent;
+pub struct ProjectileCollisionComponent {
+    owner_id: u32,
+}
+impl  ProjectileCollisionComponent {
+    pub fn new(owner_id: u32) -> Self{
+        ProjectileCollisionComponent {owner_id}
+    }
+}
 impl Component for ProjectileCollisionComponent {
-    fn update<'a>(&mut self, entity: &mut Entity, game: &mut Game<'a>, dt: f32)
-  
-    {
+    fn update<'a>(&mut self, entity: &mut Entity, game: &mut Game<'a>, dt: f32) {
         entity.rect.pos = entity.rect.pos + entity.vel * dt;
 
         let mut collided = false;
         for other in game.entities.values() {
-            if other.rect.collide(&entity.rect) {
+            if other.id != self.owner_id && other.rect.collide(&entity.rect) {
                 collided = true;
                 break;
             }
@@ -83,26 +86,25 @@ impl Component for ProjectileCollisionComponent {
             entity.alive = false;
             game.audio_manager.play(explosion_sound).unwrap();
             let images = vec![
-                    "assets/explosion/explosion1.bmp",
-                    "assets/explosion/explosion2.bmp",
-                    "assets/explosion/explosion3.bmp",
-                    "assets/explosion/explosion4.bmp",
-                    "assets/explosion/explosion5.bmp",
-                    "assets/explosion/explosion6.bmp",
-                    "assets/explosion/explosion7.bmp",
-                    "assets/explosion/explosion8.bmp",
-                    "assets/explosion/explosion9.bmp",
-                    "assets/explosion/explosion10.bmp",
-                    "assets/explosion/explosion11.bmp",
-                    "assets/explosion/explosion12.bmp",
-                ];
+                "assets/explosion/explosion1.bmp",
+                "assets/explosion/explosion2.bmp",
+                "assets/explosion/explosion3.bmp",
+                "assets/explosion/explosion4.bmp",
+                "assets/explosion/explosion5.bmp",
+                "assets/explosion/explosion6.bmp",
+                "assets/explosion/explosion7.bmp",
+                "assets/explosion/explosion8.bmp",
+                "assets/explosion/explosion9.bmp",
+                "assets/explosion/explosion10.bmp",
+                "assets/explosion/explosion11.bmp",
+                "assets/explosion/explosion12.bmp",
+            ];
             game.add_entity(Entity::new(
                 entity.rect.pos,
-                None,
+                Some(images[0]),
                 Vec2::new(0.0, 0.0),
                 0.0,
                 false,
-                
                 vec![Box::new(AnimationComponent {
                     images,
                     time_per_frame: 0.05,

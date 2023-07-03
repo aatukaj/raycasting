@@ -7,9 +7,8 @@ impl CameraComponent {
     fn project_entities<'a>(&self, entity: &Entity, game: &mut Game<'a>) {
         let camera_plane = Vec2::new(1.0, 0.0).rotate(entity.look_angle);
         let camera_normal = Vec2::new(camera_plane.y, -camera_plane.x);
-        
-        for other in game.entities.values() {
 
+        for other in game.entities.values() {
             if let Some(sprite) = other.sprite {
                 let enemy_offset_pos = other.rect.pos - entity.rect.pos;
                 let enemy_projected_pos =
@@ -31,20 +30,18 @@ impl CameraComponent {
     }
 
     fn cast_rays(&self, entity: &Entity, game: &mut Game) {
-        let m_dir: Vec2<f32> = Vec2::new(0.0, -1.0).rotate(entity.look_angle);
+        let camera_plane = Vec2::new(1.0, 0.0).rotate(entity.look_angle);
+        let camera_dir = Vec2::new(camera_plane.y, -camera_plane.x);
         let ray_start = entity.rect.pos;
         let rays: Vec<Vec2<f32>> = (0..game.screen.width)
             .map(|i| {
-                let a = (i as f32 / game.screen.width as f32 - 0.5) * FOV;
-                m_dir.rotate(a)
+                let cam_x = (2 * i) as f32 / game.screen.width as f32 - 1.0;
+                camera_dir + camera_plane * cam_x
             })
             .collect();
 
         for (index, &ray_dir) in rays.iter().enumerate() {
-            let ray_unit_step = Vec2::new(
-                (1.0 + (ray_dir.y / ray_dir.x).powf(2.0)).sqrt(),
-                (1.0 + (ray_dir.x / ray_dir.y).powf(2.0)).sqrt(),
-            );
+            let ray_unit_step = Vec2::new((1.0 / ray_dir.x).abs(), (1.0 / ray_dir.y).abs());
             let mut map_check = ray_start.as_i32();
             let mut ray_length_1d = Vec2::new(0.0, 0.0);
 
@@ -67,31 +64,36 @@ impl CameraComponent {
 
             let mut tile_found = false;
             let mut direction = Direction::Horizontal;
-            let max_distance = 100.0;
-            let mut distance = 0.0;
+            let max_steps = 100;
+            let mut steps = 0;
 
-            while !tile_found && distance < max_distance {
+
+            while !tile_found && steps < max_steps {
                 if ray_length_1d.x < ray_length_1d.y {
-                    map_check.x += step.x;
-                    distance = ray_length_1d.x;
+ 
                     ray_length_1d.x += ray_unit_step.x;
+                    map_check.x += step.x;
                     direction = Direction::Vertical;
                 } else {
-                    map_check.y += step.y;
-                    distance = ray_length_1d.y;
+
                     ray_length_1d.y += ray_unit_step.y;
+                    map_check.y += step.y;
                     direction = Direction::Horizontal;
                 }
 
                 if game.tile_map.get_tile(map_check) == 1 {
                     tile_found = true;
                 }
+                steps += 1;
             }
             if tile_found {
-                let intersection = ray_start + ray_dir * distance;
+                
 
-                let distance =
-                    distance * (-FOV / 2.0 + (FOV / game.screen.width as f32) * index as f32).cos();
+                let distance = match direction {
+                    Direction::Horizontal => ray_length_1d.y - ray_unit_step.y,
+                    Direction::Vertical => ray_length_1d.x - ray_unit_step.x,
+                };
+                let intersection = ray_start + ray_dir * distance;
 
                 let percentage = match direction {
                     Direction::Horizontal => intersection.x.fract(),

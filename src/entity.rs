@@ -13,6 +13,7 @@ pub struct Entity<'a> {
     pub collidable: bool,
     components: Option<Vec<Box<dyn Component>>>,
     pub alive: bool,
+    pub id: u32,
 }
 impl<'a> Entity<'a> {
     pub fn new(
@@ -31,6 +32,7 @@ impl<'a> Entity<'a> {
             collidable,
             components: Some(components),
             alive: true,
+            id: 0,
         }
     }
 

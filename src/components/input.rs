@@ -34,7 +34,7 @@ impl Component  for PlayerInputComponent {
                         dir * 8.0,
                         0.3,
                         false,
-                        vec![Box::new(ProjectileCollisionComponent)],
+                        vec![Box::new(ProjectileCollisionComponent::new(player.id))],
                     ));
                     let sound_data = game.assets.load_sound("assets/sounds/laserRetro_002.ogg");
                     game.audio_manager.play(sound_data.clone()).unwrap();
