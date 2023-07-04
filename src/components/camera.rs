@@ -4,21 +4,30 @@ use super::Component;
 
 pub struct CameraComponent;
 impl CameraComponent {
-    fn project_entities<'a>(&self, entity: &Entity, game: &mut Game<'a>) {
-        let camera_plane = Vec2::new(1.0, 0.0).rotate(entity.look_angle);
-        let camera_normal = Vec2::new(camera_plane.y, -camera_plane.x);
-
+    fn project_entities<'a>(
+        &self,
+        entity: &Entity,
+        game: &mut Game<'a>,
+        camera_plane: Vec2<f32>,
+        camera_normal: Vec2<f32>,
+    ) {
         for other in game.entities.values() {
             if let Some(sprite) = other.sprite {
                 let enemy_offset_pos = other.rect.pos - entity.rect.pos;
-                let enemy_projected_pos =
-                    camera_plane * enemy_offset_pos.x + camera_normal * enemy_offset_pos.y;
+                let inv_det =
+                    1.0 / (camera_plane.x * camera_normal.y - camera_normal.x * camera_plane.y);
+                let enemy_projected_pos = Vec2::new(
+                    inv_det
+                        * (camera_normal.y * enemy_offset_pos.x
+                            - camera_normal.x * enemy_offset_pos.y),
+                    inv_det
+                        * (-camera_plane.y * enemy_offset_pos.x
+                            + camera_plane.x * enemy_offset_pos.y),
+                );
 
-                let angle = enemy_projected_pos.x.atan2(enemy_projected_pos.y);
-
-                let column = ((angle + FOV) / FOV * game.screen.width as f32) as i32
-                    - game.screen.width as i32 / 2;
-                if enemy_projected_pos.y > -0.1 && angle.abs() < FOV / 1.5 {
+                let column = ((1.0 + enemy_projected_pos.x / enemy_projected_pos.y)
+                    * (game.screen.width as f32 / 2.0)) as i32;
+                if enemy_projected_pos.y > -0.1 {
                     game.renderer.data.push(DepthBufferData {
                         distance: enemy_projected_pos.y,
                         column,
@@ -29,14 +38,18 @@ impl CameraComponent {
         }
     }
 
-    fn cast_rays(&self, entity: &Entity, game: &mut Game) {
-        let camera_plane = Vec2::new(1.0, 0.0).rotate(entity.look_angle);
-        let camera_dir = Vec2::new(camera_plane.y, -camera_plane.x);
+    fn cast_rays(
+        &self,
+        entity: &Entity,
+        game: &mut Game,
+        camera_plane: Vec2<f32>,
+        camera_normal: Vec2<f32>,
+    ) {
         let ray_start = entity.rect.pos;
         let rays: Vec<Vec2<f32>> = (0..game.screen.width)
             .map(|i| {
                 let cam_x = (2 * i) as f32 / game.screen.width as f32 - 1.0;
-                camera_dir + camera_plane * cam_x
+                camera_normal + camera_plane * cam_x
             })
             .collect();
 
@@ -67,15 +80,12 @@ impl CameraComponent {
             let max_steps = 100;
             let mut steps = 0;
 
-
             while !tile_found && steps < max_steps {
                 if ray_length_1d.x < ray_length_1d.y {
- 
                     ray_length_1d.x += ray_unit_step.x;
                     map_check.x += step.x;
                     direction = Direction::Vertical;
                 } else {
-
                     ray_length_1d.y += ray_unit_step.y;
                     map_check.y += step.y;
                     direction = Direction::Horizontal;
@@ -87,8 +97,6 @@ impl CameraComponent {
                 steps += 1;
             }
             if tile_found {
-                
-
                 let distance = match direction {
                     Direction::Horizontal => ray_length_1d.y - ray_unit_step.y,
                     Direction::Vertical => ray_length_1d.x - ray_unit_step.x,
@@ -115,7 +123,9 @@ impl CameraComponent {
 
 impl Component for CameraComponent {
     fn update<'a>(&mut self, entity: &mut Entity, game: &mut Game, dt: f32) {
-        self.cast_rays(entity, game);
-        self.project_entities(entity, game);
+        let camera_plane = Vec2::new(1.0, 0.0).rotate(entity.look_angle);
+        let camera_normal = Vec2::new(camera_plane.y, -camera_plane.x);
+        self.cast_rays(entity, game, camera_plane, camera_normal);
+        self.project_entities(entity, game, camera_plane, camera_normal);
     }
 }

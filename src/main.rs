@@ -35,8 +35,8 @@ use tile_map::*;
 mod components;
 use components::*;
 
-const WIDTH: usize = 500;
-const HEIGHT: usize = 300;
+const WIDTH: usize = 700;
+const HEIGHT: usize = 400;
 
 const FOV: f32 = 90.0 / 180.0 * PI;
 
@@ -131,6 +131,8 @@ impl<'a> Game<'a> {
 }
 
 fn main() {
+
+
     SimpleLogger::new()
         .with_colors(true)
         .with_level(log::LevelFilter::Off)
@@ -181,6 +183,8 @@ fn main() {
         //let m_pos = Vec2::from_tuple(window.get_mouse_pos(MouseMode::Clamp).unwrap()) / 2.0;
 
         let keys = game.entities.keys().map(|k| *k).collect::<Vec<_>>();
+
+
         for key in keys {
             let mut entity = game.entities.remove(&key).unwrap();
             entity.update(dt, &mut game);

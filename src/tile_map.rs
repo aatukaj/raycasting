@@ -25,14 +25,19 @@ impl TileMap {
 
 pub fn load_map(path: &str) -> Result<TileMap, Box<dyn Error>> {
     let contents = fs::read_to_string(path)?;
-    let lines: Vec<&str> = contents.split_ascii_whitespace().collect();
+    let lines: Vec<&str> = contents.lines().collect();
     let width = lines[0].len();
     let height = lines.len();
     let mut buf = Vec::with_capacity(width * height);
     for line in lines {
-        for c in line.chars() {
-            buf.push(c.to_digit(10).unwrap() as u8)
+        for c in line.chars(){
+
+            buf.push(match c {
+                '1' => 1,
+                _ => 0,
+            })
         }
     }
+
     Ok(TileMap { width, height, buf })
 }

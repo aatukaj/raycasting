@@ -1,6 +1,8 @@
+use std::any::Any;
+
 use crate::{
     math::Vec2, rect::Rect, surface::Surface, tile_map::TileMap,
-    Component, Game,
+    Component, Game, components::collision::BasicCollisionComponent,
 };
 
 pub struct Entity<'a> {
@@ -37,6 +39,7 @@ impl<'a> Entity<'a> {
     }
 
     pub fn update(&mut self, dt: f32, game: &mut Game<'a>) {
+
         let components = self.components.take();
         if let Some(mut components) = components {
             for component in components.iter_mut() {

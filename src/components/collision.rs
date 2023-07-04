@@ -11,7 +11,7 @@ impl Component for BasicCollisionComponent {
         let cols = game.tile_map.get_collisions(&entity.rect);
         for col in cols {
             if entity.vel.x > 0.0 {
-                entity.rect.pos.x = col.x as f32 - h_size - 0.00420; //i dont like the arbitrary subtraction but it fixes a bug
+                entity.rect.pos.x = col.x as f32 - h_size - 0.001; //i dont like the arbitrary subtraction but it fixes a bug
             } else if entity.vel.x < 0.0 {
                 entity.rect.pos.x = col.x as f32 + 1.0 + h_size;
             }
@@ -35,7 +35,7 @@ impl Component for BasicCollisionComponent {
         let cols = game.tile_map.get_collisions(&entity.rect);
         for col in cols {
             if entity.vel.y > 0.0 {
-                entity.rect.pos.y = col.y as f32 - h_size - 0.00420;
+                entity.rect.pos.y = col.y as f32 - h_size - 0.001;
             } else if entity.vel.y < 0.0 {
                 entity.rect.pos.y = col.y as f32 + 1.0 + h_size;
             }
@@ -103,7 +103,7 @@ impl Component for ProjectileCollisionComponent {
                 entity.rect.pos,
                 Some(images[0]),
                 Vec2::new(0.0, 0.0),
-                0.0,
+                0.5,
                 false,
                 vec![Box::new(AnimationComponent {
                     images,
