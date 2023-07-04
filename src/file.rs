@@ -1,45 +1,31 @@
+use crate::drawing::val_from_rgba;
 use crate::Surface;
 use std::error::Error;
-use std::fs;
+use std::fs::File;
 
-fn bytes_to_u32(bytes: &[u8]) -> Result<u32, &str> {
-    match bytes.len() {
-        3 => Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], 0xff])),
-        4 => Ok(u32::from_le_bytes(bytes.try_into().unwrap())),
+pub fn load_png(path: &str) -> Result<Surface, Box<dyn Error>> {
+    let decoder = png::Decoder::new(File::open(path)?);
+    let mut reader = decoder.read_info()?;
 
-        _ => Err("len of `bytes` must be 3 or 4"),
-    }
-}
+    let mut buf = vec![0; reader.output_buffer_size()];
 
-pub fn load_bmp(path: &str) -> Result<Surface, Box<dyn Error>> {
-    //doesnt work on non rgba bmps, a fix should be pretty easy??
-    //this could most definetely be improved, but it works rn
+    let info = reader.next_frame(&mut buf).unwrap();
 
+    let bytes = &buf[..info.buffer_size()];
+    let width = info.width as usize;
+    let height = info.height as usize;
 
-    let px_offset_index = 0x0A;
-    let img_size_index = 0x12;
-
-    let file = fs::read(path)?;
-    let pixel_array_offset = bytes_to_u32(&file[px_offset_index..px_offset_index + 4])? as usize;
-    let width = bytes_to_u32(&file[img_size_index..img_size_index + 4])? as usize;
-    let height = bytes_to_u32(&file[img_size_index + 4..img_size_index + 8])? as usize;
-
-
-
-    let mut pixel_buffer: Vec<u32> = vec![0; width * height];
-    for (i, value) in file[pixel_array_offset..]
+    let buf: Vec<u32> = bytes
         .chunks_exact(4)
-        .map(|bytes| bytes_to_u32(bytes).unwrap())
-        .enumerate()
-    {
-        let x = i % width;
-        let y = height - 1 - i / width;
-        pixel_buffer[x + y * width] = value;
-    }
-
+        .map(|chunk| {
+            let [r, g, b, a]: [_; 4] = chunk.try_into().unwrap();
+            val_from_rgba(r, g, b, a)
+        })
+        .collect();
+    assert_eq!(buf.len(), width * height);
     Ok(Surface {
-        width: width,
-        height: height,
-        pixel_buffer,
+        width,
+        height,
+        pixel_buffer: buf,
     })
 }

@@ -16,3 +16,5 @@ simple_logger = { version = "4.2.0", default_features = false, features = [
     "colors",
 ] }
 log = "0.4.19"
+glam = "0.24.1"
+png = "0.17.9" 

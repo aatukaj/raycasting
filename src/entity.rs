@@ -1,15 +1,15 @@
-use std::any::Any;
+use glam::*;
 
 use crate::{
-    math::Vec2, rect::Rect, surface::Surface, tile_map::TileMap,
-    Component, Game, components::collision::BasicCollisionComponent,
+    rect::Rect,
+    Component, Game
 };
 
 pub struct Entity<'a> {
 
     pub sprite: Option<&'a str>,
     pub look_angle: f32,
-    pub vel: Vec2<f32>,
+    pub vel: Vec2,
 
     pub rect: Rect,
     pub collidable: bool,
@@ -19,9 +19,9 @@ pub struct Entity<'a> {
 }
 impl<'a> Entity<'a> {
     pub fn new(
-        pos: Vec2<f32>,
+        pos: Vec2,
         sprite: Option<&'a str>,
-        vel: Vec2<f32>,
+        vel: Vec2,
         size: f32,
         collidable: bool,
         components: Vec<Box<dyn Component>>,

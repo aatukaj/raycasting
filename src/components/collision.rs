@@ -1,4 +1,6 @@
-use crate::{entity::Entity, math::Vec2, Game};
+use glam::Vec2;
+
+use crate::{entity::Entity, Game};
 
 use super::{AnimationComponent, Component};
 pub struct BasicCollisionComponent;
@@ -13,7 +15,7 @@ impl Component for BasicCollisionComponent {
             if entity.vel.x > 0.0 {
                 entity.rect.pos.x = col.x as f32 - h_size - 0.001; //i dont like the arbitrary subtraction but it fixes a bug
             } else if entity.vel.x < 0.0 {
-                entity.rect.pos.x = col.x as f32 + 1.0 + h_size;
+                entity.rect.pos.x = col.x as f32 + 1.0 + h_size + 0.001;
             }
         }
 
@@ -37,7 +39,7 @@ impl Component for BasicCollisionComponent {
             if entity.vel.y > 0.0 {
                 entity.rect.pos.y = col.y as f32 - h_size - 0.001;
             } else if entity.vel.y < 0.0 {
-                entity.rect.pos.y = col.y as f32 + 1.0 + h_size;
+                entity.rect.pos.y = col.y as f32 + 1.0 + h_size + 0.001;
             }
         }
 
@@ -86,18 +88,18 @@ impl Component for ProjectileCollisionComponent {
             entity.alive = false;
             game.audio_manager.play(explosion_sound).unwrap();
             let images = vec![
-                "assets/explosion/explosion1.bmp",
-                "assets/explosion/explosion2.bmp",
-                "assets/explosion/explosion3.bmp",
-                "assets/explosion/explosion4.bmp",
-                "assets/explosion/explosion5.bmp",
-                "assets/explosion/explosion6.bmp",
-                "assets/explosion/explosion7.bmp",
-                "assets/explosion/explosion8.bmp",
-                "assets/explosion/explosion9.bmp",
-                "assets/explosion/explosion10.bmp",
-                "assets/explosion/explosion11.bmp",
-                "assets/explosion/explosion12.bmp",
+                "assets/explosion/explosion1.png",
+                "assets/explosion/explosion2.png",
+                "assets/explosion/explosion3.png",
+                "assets/explosion/explosion4.png",
+                "assets/explosion/explosion5.png",
+                "assets/explosion/explosion6.png",
+                "assets/explosion/explosion7.png",
+                "assets/explosion/explosion8.png",
+                "assets/explosion/explosion9.png",
+                "assets/explosion/explosion10.png",
+                "assets/explosion/explosion11.png",
+                "assets/explosion/explosion12.png",
             ];
             game.add_entity(Entity::new(
                 entity.rect.pos,

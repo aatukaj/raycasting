@@ -1,14 +1,11 @@
-use std::{
-    cmp::Ordering,
-    collections::{BinaryHeap, HashMap},
-};
-
 use crate::{
     drawing::{draw_rect, val_from_rgb},
-    math::{set_value_brightness, Vec2},
+    math::set_value_brightness,
     surface::Surface,
     AssetCache,
 };
+use glam::*;
+use std::{cmp::Ordering, collections::BinaryHeap};
 
 pub enum Direction {
     Horizontal,
@@ -42,6 +39,7 @@ pub enum BufferDataType<'a> {
     Wall {
         direction: Direction,
         percentage: f32,
+        wall_type: u8,
     },
     Sprite {
         surf: &'a str,
@@ -67,10 +65,13 @@ impl DepthBufferRenderer<'_> {
                 BufferDataType::Wall {
                     direction,
                     percentage,
+                    wall_type,
                 } => {
-                    let wall_tex = sprites.load_bmp(match direction {
-                        Direction::Horizontal => "assets/bricksmall.bmp",
-                        Direction::Vertical => "assets/bricksmall2.bmp",
+                    let wall_tex = sprites.load_png(match (direction, wall_type) {
+                        (Direction::Horizontal, 1) => "assets/bricksmall.png",
+                        (Direction::Vertical, 1) => "assets/bricksmall2.png",
+                        (_, 2) => "assets/door.png",
+                        _ => "assets/debug.png",
                     });
 
                     let height = (value * 1.0 * screen.height as f32) as i32;
@@ -82,20 +83,21 @@ impl DepthBufferRenderer<'_> {
                     for y in 0..height {
                         let col = wall_tex.pixel_buffer
                             [wall_x + (y as f32 / scale) as usize * wall_tex.width];
-                        let _ = screen.set_pixel(
-                            x,
-                            (y + offset) as u32,
-                            set_value_brightness(col, brightness),
-                        );
+                        if col != 0 {
+                            let _ = screen.set_pixel(
+                                x,
+                                (y + offset) as u32,
+                                set_value_brightness(col, brightness),
+                            );
+                        }
+                        
                     }
-
-        
                 }
                 BufferDataType::Sprite { surf } => {
                     screen.blit_scaled(
-                        sprites.load_bmp(surf),
-                        Vec2::new(buf_data.column, screen.height as i32 / 2),
-                        1.0 / buf_data.distance * 20.0,
+                        sprites.load_png(surf),
+                        IVec2::new(buf_data.column, screen.height as i32 / 2),
+                        1.0 / buf_data.distance * 16.0,
                     );
                 }
             }

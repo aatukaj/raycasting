@@ -1,13 +1,13 @@
-use crate::math::Vec2;
+use glam::*;
 
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Rect {
-    pub pos: Vec2<f32>,
+    pub pos: Vec2,
     pub size: f32,
 }
 impl Rect {
-    pub fn get_corners(&self) -> [Vec2<f32>; 4] {
+    pub fn get_corners(&self) -> [Vec2; 4] {
         let h_size = self.size / 2.0;
         [
             self.pos + Vec2::new(h_size, h_size),

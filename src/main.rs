@@ -1,11 +1,11 @@
 use kira::dsp::Frame;
 use minifb::{Key, Window, WindowOptions};
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::HashMap;
 
-use std::f32::consts::PI;
 use std::sync::Arc;
 use std::time;
 
+use glam::*;
 use kira::{
     manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings},
     sound::static_sound::{StaticSoundData, StaticSoundSettings},
@@ -13,11 +13,14 @@ use kira::{
 use simple_logger::SimpleLogger;
 
 mod math;
-use math::*;
+use math::set_value_brightness;
+
 mod surface;
 use surface::*;
+
 mod drawing;
 use drawing::*;
+
 mod file;
 use file::*;
 
@@ -38,14 +41,7 @@ use components::*;
 const WIDTH: usize = 700;
 const HEIGHT: usize = 400;
 
-const FOV: f32 = 90.0 / 180.0 * PI;
-
 const PLAYER_SIZE: f32 = 0.8;
-
-//bit flags
-const PLAYER: u32 = 1;
-const ENEMY: u32 = 1 << 1;
-const PROJECTILE: u32 = 1 << 2;
 
 pub struct AssetCache {
     sprites: HashMap<String, Surface>,
@@ -58,10 +54,10 @@ impl AssetCache {
             sounds: HashMap::new(),
         }
     }
-    pub fn load_bmp(&mut self, path: &str) -> &Surface {
+    pub fn load_png(&mut self, path: &str) -> &Surface {
         self.sprites
             .entry(path.to_string())
-            .or_insert_with(|| match load_bmp(path) {
+            .or_insert_with(|| match load_png(path) {
                 Ok(img) => img,
                 Err(err) => {
                     log::warn!("Couldn't load {path}, ERROR: {err}");
@@ -131,8 +127,6 @@ impl<'a> Game<'a> {
 }
 
 fn main() {
-
-
     SimpleLogger::new()
         .with_colors(true)
         .with_level(log::LevelFilter::Off)
@@ -142,9 +136,11 @@ fn main() {
 
     let mut game = Game::new();
 
+    let gun_image = load_png("assets/gun.png").unwrap();
+
     game.add_entity(Entity::new(
         Vec2::new(2.5, 2.5),
-        Some("assets/player.bmp"),
+        Some("assets/player.png"),
         Vec2::new(0.0, 0.0),
         PLAYER_SIZE,
         true,
@@ -157,7 +153,7 @@ fn main() {
 
     game.add_entity(Entity::new(
         Vec2::new(9.5, 9.5),
-        Some("assets/player.bmp"),
+        Some("assets/player.png"),
         Vec2::new(0.0, 0.0),
         0.8,
         true,
@@ -184,7 +180,6 @@ fn main() {
 
         let keys = game.entities.keys().map(|k| *k).collect::<Vec<_>>();
 
-
         for key in keys {
             let mut entity = game.entities.remove(&key).unwrap();
             entity.update(dt, &mut game);
@@ -195,10 +190,10 @@ fn main() {
 
         game.renderer.render(&mut game.screen, &mut game.assets);
 
-        let surf_to_blit = game.assets.load_bmp("assets/gun.bmp");
+        let surf_to_blit = &gun_image;
         game.screen.blit_scaled(
             surf_to_blit,
-            Vec2::new(
+            IVec2::new(
                 (WIDTH / 2) as i32,
                 (HEIGHT - surf_to_blit.width / 2 - 14) as i32,
             ),
@@ -218,14 +213,14 @@ fn render_bg(screen: &mut Surface) {
 
         draw_rect(
             screen,
-            Vec2::new(0, y as i32),
-            Vec2::new(WIDTH as i32, 1),
+            IVec2::new(0, y as i32),
+            IVec2::new(WIDTH as i32, 1),
             set_value_brightness(0x516988, value),
         );
         draw_rect(
             screen,
-            Vec2::new(0, (HEIGHT - y) as i32),
-            Vec2::new(WIDTH as i32, 1),
+            IVec2::new(0, (HEIGHT - y) as i32),
+            IVec2::new(WIDTH as i32, 1),
             set_value_brightness(0xc0cbdc, value),
         );
     }

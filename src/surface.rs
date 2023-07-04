@@ -1,4 +1,4 @@
-use crate::math::*;
+use glam::*;
 pub struct Surface {
     pub width: usize,
     pub height: usize,
@@ -40,7 +40,7 @@ impl Surface {
             }
         }
     }
-    pub fn blit_scaled(&mut self, source: &Surface, pos: Vec2<i32>, scale: f32) {
+    pub fn blit_scaled(&mut self, source: &Surface, pos: IVec2, scale: f32) {
         let scaled_width = (source.width as f32 * scale) as i32;
         let scaled_height = (source.height as f32 * scale) as i32;
         let offset_x = pos.x - scaled_width / 2;
