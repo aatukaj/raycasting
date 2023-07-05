@@ -30,7 +30,7 @@ impl<'a> Entity<'a> {
             sprite,
             look_angle: 0.0,
             vel,
-            rect: Rect { pos, size },
+            rect: Rect { pos, width: size, height: size },
             collidable,
             components: Some(components),
             alive: true,

@@ -38,9 +38,9 @@ use tile_map::*;
 mod components;
 use components::*;
 
-const WIDTH: usize = 700;
-const HEIGHT: usize = 400;
-
+const WIDTH: usize = 700 * 2;
+const HEIGHT: usize = 400 * 2;
+const SCALE: usize = 1;
 const PLAYER_SIZE: f32 = 0.8;
 
 pub struct AssetCache {
@@ -86,7 +86,7 @@ impl AssetCache {
 pub struct Game<'a> {
     pub window: Window,
     pub renderer: DepthBufferRenderer<'a>,
-    pub tile_map: TileMap,
+    pub tile_map: TileMap<'a>,
 
     pub screen: Surface,
     pub assets: AssetCache,
@@ -99,8 +99,8 @@ impl<'a> Game<'a> {
         Game {
             window: Window::new(
                 "Test - ESC to exit",
-                WIDTH * 2,
-                HEIGHT * 2,
+                WIDTH * SCALE,
+                HEIGHT * SCALE,
                 WindowOptions {
                     scale_mode: minifb::ScaleMode::AspectRatioStretch,
                     ..Default::default()
@@ -195,10 +195,14 @@ fn main() {
             surf_to_blit,
             IVec2::new(
                 (WIDTH / 2) as i32,
-                (HEIGHT - surf_to_blit.width / 2 - 14) as i32,
+                (HEIGHT - surf_to_blit.width / 2 - 70) as i32,
             ),
-            2.0,
+            6.0,
         );
+        let tile = game.tile_map.get_tile_mut(ivec2(6, 6)).unwrap();
+        if let TileType::Door(open_value, dir) = tile.tile_type  {
+            tile.tile_type = TileType::Door(open_value + dt / 4.0, dir);
+        }
 
         game.window
             .update_with_buffer(&game.screen.pixel_buffer, WIDTH, HEIGHT)

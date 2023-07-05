@@ -9,50 +9,56 @@ impl Component for BasicCollisionComponent {
         let old_rect = entity.rect.clone();
 
         entity.rect.pos.x += entity.vel.x * dt;
-        let h_size = entity.rect.size / 2.0;
-        let cols = game.tile_map.get_collisions(&entity.rect);
-        for col in cols {
-            if entity.vel.x > 0.0 {
-                entity.rect.pos.x = col.x as f32 - h_size - 0.001; //i dont like the arbitrary subtraction but it fixes a bug
-            } else if entity.vel.x < 0.0 {
-                entity.rect.pos.x = col.x as f32 + 1.0 + h_size + 0.001;
-            }
-        }
 
-        for other in game.entities.values() {
-            if other.collidable && entity.rect.collide(&other.rect) {
-                if entity.rect.get_right() >= other.rect.get_left()
-                    && old_rect.get_right() <= other.rect.get_left()
+        let cols = game.tile_map.get_collisions(&entity.rect);
+
+        for col in game
+            .entities
+            .values()
+            .filter_map(|other| {
+                let rect = other.rect;
+                (entity.rect.collide(&rect) && other.collidable).then_some(rect)
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .chain(cols.into_iter())
+        {
+            {
+                if entity.rect.get_right() >= col.get_left()
+                    && old_rect.get_right() <= col.get_left()
                 {
-                    entity.rect.set_right(other.rect.get_left());
-                } else if entity.rect.get_left() <= other.rect.get_right()
-                    && old_rect.get_left() >= other.rect.get_right()
+                    entity.rect.set_right(col.get_left() - 0.001);
+                } else if entity.rect.get_left() <= col.get_right()
+                    && old_rect.get_left() >= col.get_right()
                 {
-                    entity.rect.set_left(other.rect.get_right());
+                    entity.rect.set_left(col.get_right() + 0.001);
                 }
             }
         }
 
         entity.rect.pos.y += entity.vel.y * dt;
         let cols = game.tile_map.get_collisions(&entity.rect);
-        for col in cols {
-            if entity.vel.y > 0.0 {
-                entity.rect.pos.y = col.y as f32 - h_size - 0.001;
-            } else if entity.vel.y < 0.0 {
-                entity.rect.pos.y = col.y as f32 + 1.0 + h_size + 0.001;
-            }
-        }
 
-        for other in game.entities.values() {
-            if other.collidable && entity.rect.collide(&other.rect) {
-                if entity.rect.get_bottom() >= other.rect.get_top()
-                    && old_rect.get_bottom() <= other.rect.get_top()
+        for col in game
+            .entities
+            .values()
+            .filter_map(|other| {
+                let rect = other.rect;
+                (entity.rect.collide(&rect) && other.collidable).then_some(rect)
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .chain(cols.into_iter())
+        {
+            {
+                if entity.rect.get_bottom() >= col.get_top()
+                    && old_rect.get_bottom() <= col.get_top()
                 {
-                    entity.rect.set_bottom(other.rect.get_top());
-                } else if entity.rect.get_top() <= other.rect.get_bottom()
-                    && old_rect.get_top() >= other.rect.get_bottom()
+                    entity.rect.set_bottom(col.get_top() - 0.001);
+                } else if entity.rect.get_top() <= col.get_bottom()
+                    && old_rect.get_top() >= col.get_bottom()
                 {
-                    entity.rect.set_top(other.rect.get_bottom());
+                    entity.rect.set_top(col.get_bottom() + 0.001);
                 }
             }
         }
@@ -61,9 +67,9 @@ impl Component for BasicCollisionComponent {
 pub struct ProjectileCollisionComponent {
     owner_id: u32,
 }
-impl  ProjectileCollisionComponent {
-    pub fn new(owner_id: u32) -> Self{
-        ProjectileCollisionComponent {owner_id}
+impl ProjectileCollisionComponent {
+    pub fn new(owner_id: u32) -> Self {
+        ProjectileCollisionComponent { owner_id }
     }
 }
 impl Component for ProjectileCollisionComponent {

@@ -1,7 +1,7 @@
 use super::Component;
+use crate::tile_map::*;
 use crate::{depth_buffer::*, entity::Entity, Game};
 use glam::*;
-
 pub struct CameraComponent;
 impl CameraComponent {
     fn project_entities<'a>(
@@ -77,18 +77,51 @@ impl CameraComponent {
                     direction = Direction::Horizontal;
                 }
                 let tile = game.tile_map.get_tile(map_check);
-                if tile != 0 {
+                if let Some(tile) = tile {
                     let mut distance = match direction {
                         Direction::Horizontal => ray_length_1d.y - ray_unit_step.y,
                         Direction::Vertical => ray_length_1d.x - ray_unit_step.x,
                     };
-                    
-                    if tile == 2 {
-                        distance += match direction {
-                            Direction::Horizontal => ray_unit_step.y * 0.5,
-                            Direction::Vertical => continue,
+                    if tile.tile_type == TileType::Wall {}
+                    match &tile.tile_type {
+                        TileType::Wall => tile_found = true,
+                        TileType::Door(open_amount, door_dir) => {
+                            if &direction == door_dir {
+                                let percentage = (ray_start + ray_dir * distance).fract();
+                                let step = ray_unit_step * 0.5;
+                                distance += match direction {
+                                    Direction::Horizontal
+                                        if percentage.x + step.y * ray_dir.x
+                                            < 1.0 - open_amount =>
+                                    {
+                                        step.y
+                                    }
+                                    Direction::Vertical
+                                        if percentage.y + step.x * ray_dir.y
+                                            < 1.0 - open_amount =>
+                                    {
+                                        step.x
+                                    }
+
+                                    _ => continue,
+                                };
+                            } else {
+                                continue;
+                            }
                         }
-                    };
+                        TileType::Subwall(offset, wall_dir) => {
+                            if &direction == wall_dir {
+                                let step = ray_unit_step * *offset;
+                                distance += match direction {
+                                    Direction::Horizontal => step.y,
+                                    Direction::Vertical => step.x,
+                                };
+                            } else {
+                                continue;
+                            }
+                        }
+                    }
+
                     let intersection = ray_start + ray_dir * distance;
 
                     let percentage = match direction {
@@ -102,12 +135,12 @@ impl CameraComponent {
                         data_type: BufferDataType::Wall {
                             direction,
                             percentage,
-                            wall_type: tile,
+                            sprite: tile.sprites[match direction {
+                                Direction::Horizontal => 0,
+                                Direction::Vertical => 1,
+                            }],
                         },
                     });
-                    if tile == 1 {
-                        tile_found = true;
-                    }
                 }
                 steps += 1;
             }

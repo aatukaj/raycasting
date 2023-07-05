@@ -7,6 +7,8 @@ use crate::{
 use glam::*;
 use std::{cmp::Ordering, collections::BinaryHeap};
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+
 pub enum Direction {
     Horizontal,
     Vertical,
@@ -39,7 +41,7 @@ pub enum BufferDataType<'a> {
     Wall {
         direction: Direction,
         percentage: f32,
-        wall_type: u8,
+        sprite: &'a str,
     },
     Sprite {
         surf: &'a str,
@@ -65,14 +67,9 @@ impl DepthBufferRenderer<'_> {
                 BufferDataType::Wall {
                     direction,
                     percentage,
-                    wall_type,
+                    sprite,
                 } => {
-                    let wall_tex = sprites.load_png(match (direction, wall_type) {
-                        (Direction::Horizontal, 1) => "assets/bricksmall.png",
-                        (Direction::Vertical, 1) => "assets/bricksmall2.png",
-                        (_, 2) => "assets/door.png",
-                        _ => "assets/debug.png",
-                    });
+                    let wall_tex = sprites.load_png(sprite);
 
                     let height = (value * 1.0 * screen.height as f32) as i32;
                     let scale = height as f32 / wall_tex.height as f32;
@@ -90,14 +87,13 @@ impl DepthBufferRenderer<'_> {
                                 set_value_brightness(col, brightness),
                             );
                         }
-                        
                     }
                 }
                 BufferDataType::Sprite { surf } => {
                     screen.blit_scaled(
                         sprites.load_png(surf),
                         IVec2::new(buf_data.column, screen.height as i32 / 2),
-                        1.0 / buf_data.distance * 16.0,
+                        1.0 / buf_data.distance * 32.0,
                     );
                 }
             }
