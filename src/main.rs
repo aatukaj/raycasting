@@ -1,6 +1,8 @@
 use kira::dsp::Frame;
 use minifb::{Key, Window, WindowOptions};
-use std::collections::HashMap;
+use std::cell::Ref;
+use std::rc::Rc;
+use std::{collections::HashMap, cell::RefCell};
 
 use std::sync::Arc;
 use std::time;
@@ -44,28 +46,28 @@ const SCALE: usize = 1;
 const PLAYER_SIZE: f32 = 0.8;
 
 pub struct AssetCache {
-    sprites: HashMap<String, Surface>,
+    sprites: RefCell<HashMap<String,Arc<Surface>>>,
     sounds: HashMap<String, StaticSoundData>,
 }
 impl AssetCache {
     fn new() -> Self {
         AssetCache {
-            sprites: HashMap::new(),
+            sprites: RefCell::new(HashMap::new()),
             sounds: HashMap::new(),
         }
     }
-    pub fn load_png(&mut self, path: &str) -> &Surface {
-        self.sprites
+    pub fn load_png(&self, path: &str) -> Arc<Surface> {
+        self.sprites.borrow_mut()
             .entry(path.to_string())
             .or_insert_with(|| match load_png(path) {
-                Ok(img) => img,
+                Ok(img) => Arc::new(img),
                 Err(err) => {
                     log::warn!("Couldn't load {path}, ERROR: {err}");
                     let mut surf = Surface::empty(16, 16);
                     surf.fill(0xDA70D6);
-                    surf
+                    Arc::new(surf)
                 }
-            })
+            }).clone()
     }
 
     pub fn load_sound(&mut self, path: &str) -> &StaticSoundData {
@@ -139,7 +141,7 @@ fn main() {
     let gun_image = load_png("assets/gun.png").unwrap();
 
     game.add_entity(Entity::new(
-        Vec2::new(2.5, 2.5),
+        Vec2::new(6.5, 7.5),
         Some("assets/player.png"),
         Vec2::new(0.0, 0.0),
         PLAYER_SIZE,
@@ -147,7 +149,7 @@ fn main() {
         vec![
             Box::new(BasicCollisionComponent),
             Box::new(PlayerInputComponent),
-            Box::new(CameraComponent),
+            Box::new(CameraComponent::new()),
         ],
     ));
 
@@ -155,7 +157,7 @@ fn main() {
         Vec2::new(9.5, 9.5),
         Some("assets/player.png"),
         Vec2::new(0.0, 0.0),
-        0.8,
+        0.6,
         true,
         vec![
             Box::new(BasicCollisionComponent),
@@ -174,11 +176,11 @@ fn main() {
         now = time::SystemTime::now();
         game.screen.fill(0);
 
-        render_bg(&mut game.screen);
+        //render_bg(&mut game.screen);
 
         //let m_pos = Vec2::from_tuple(window.get_mouse_pos(MouseMode::Clamp).unwrap()) / 2.0;
 
-        let keys = game.entities.keys().map(|k| *k).collect::<Vec<_>>();
+        let keys = game.entities.keys().copied().collect::<Vec<_>>();
 
         for key in keys {
             let mut entity = game.entities.remove(&key).unwrap();

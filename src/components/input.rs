@@ -10,10 +10,10 @@ impl Component  for PlayerInputComponent {
         let mut vel = Vec2::new(0.0, 0.0);
         let player = entity;
         game.window.get_keys().iter().for_each(|key| match key {
-            Key::A => vel = vel + Vec2::new(-5.0, 0.0).rotate(Vec2::from_angle(player.look_angle)),
-            Key::D => vel = vel + Vec2::new(5.0, 0.0).rotate(Vec2::from_angle(player.look_angle)),
-            Key::W => vel = vel + Vec2::new(0.0, -5.0).rotate(Vec2::from_angle(player.look_angle)),
-            Key::S => vel = vel + Vec2::new(0.0, 5.0).rotate(Vec2::from_angle(player.look_angle)),
+            Key::A => vel += Vec2::new(-5.0, 0.0).rotate(Vec2::from_angle(player.look_angle)),
+            Key::D => vel += Vec2::new(5.0, 0.0).rotate(Vec2::from_angle(player.look_angle)),
+            Key::W => vel += Vec2::new(0.0, -5.0).rotate(Vec2::from_angle(player.look_angle)),
+            Key::S => vel += Vec2::new(0.0, 5.0).rotate(Vec2::from_angle(player.look_angle)),
             Key::Left => player.look_angle -= 2.0 * dt,
             Key::Right => player.look_angle += 2.0 * dt,
 
@@ -30,7 +30,7 @@ impl Component  for PlayerInputComponent {
 
                     game.add_entity(Entity::new(
                         player.rect.pos + dir * 0.5,
-                        Some("assets/bullet.png"),
+                        Some("assets/explosion/explosion1.png"),
                         dir * 8.0,
                         0.3,
                         false,

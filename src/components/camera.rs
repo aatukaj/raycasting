@@ -2,8 +2,19 @@ use super::Component;
 use crate::tile_map::*;
 use crate::{depth_buffer::*, entity::Entity, Game};
 use glam::*;
-pub struct CameraComponent;
+use log;
+use std::sync::mpsc;
+use std::{thread, time};
+use threadpool::ThreadPool;
+pub struct CameraComponent {
+    threadpool: ThreadPool,
+}
 impl CameraComponent {
+    pub fn new() -> Self {
+        CameraComponent {
+            threadpool: ThreadPool::new(4),
+        }
+    }
     fn project_entities<'a>(
         &self,
         entity: &Entity,
@@ -82,11 +93,12 @@ impl CameraComponent {
                         Direction::Horizontal => ray_length_1d.y - ray_unit_step.y,
                         Direction::Vertical => ray_length_1d.x - ray_unit_step.x,
                     };
-                    if tile.tile_type == TileType::Wall {}
+                    let mut tex_offset = 0.0;
                     match &tile.tile_type {
                         TileType::Wall => tile_found = true,
                         TileType::Door(open_amount, door_dir) => {
                             if &direction == door_dir {
+                                tex_offset = *open_amount;
                                 let percentage = (ray_start + ray_dir * distance).fract();
                                 let step = ray_unit_step * 0.5;
                                 distance += match direction {
@@ -127,8 +139,10 @@ impl CameraComponent {
                     let percentage = match direction {
                         Direction::Horizontal => intersection.x.fract(),
                         Direction::Vertical => intersection.y.fract(),
-                    };
-
+                    } + tex_offset;
+                    if percentage > 1.0 {
+                        continue;
+                    }
                     game.renderer.data.push(DepthBufferData {
                         distance,
                         column: index as i32,
@@ -146,6 +160,75 @@ impl CameraComponent {
             }
         }
     }
+    fn cast_floor(
+        &self,
+        entity: &Entity,
+        game: &mut Game,
+        camera_plane: Vec2,
+        camera_normal: Vec2,
+    ) {
+        let floor_tex = game.assets.load_png("assets/ceil.png");
+        let ceil_tex = game.assets.load_png("assets/floor.png");
+        let floor_size = floor_tex.width as f32;
+        let ray_dir0 = camera_normal - camera_plane;
+        let ray_dir1 = camera_normal + camera_plane;
+
+        let pos_z = 0.5 * game.screen.height as f32;
+
+        //let start = time::Instant::now();
+
+        let (tx, rx) = mpsc::channel();
+
+        let num_jobs: usize = 32;
+        let y_per_job = game.screen.height / 2 / num_jobs;
+        let tex_width = floor_tex.width;
+        let screen_width = game.screen.width;
+        let screen_height = game.screen.height;
+        let pos = entity.rect.pos;
+
+        for t in 0..num_jobs {
+            let tx = tx.clone();
+            let start_i = game.screen.height / 2 + t * y_per_job;
+            let end_i = start_i + y_per_job;
+
+            self.threadpool.execute(move || {
+                for y in (start_i)..end_i {
+                    let p = y - screen_height / 2;
+                    let row_dist = pos_z / p as f32;
+                    let floor_step = row_dist * (ray_dir1 - ray_dir0) / screen_width as f32;
+
+                    let mut floor_pos = pos + row_dist * ray_dir0;
+                    let mut vals = Vec::with_capacity(screen_width);
+                    for _ in 0..screen_width {
+                        let tex_pos = (floor_size * floor_pos.fract()).as_uvec2();
+                        floor_pos += floor_step;
+                        let index = tex_pos.x as usize + tex_pos.y as usize * tex_width;
+                        vals.push([index as u16, y as u16]);
+
+    
+                    }
+                    tx.send(vals).unwrap();
+                }
+            });
+        }
+        drop(tx);
+
+        for val in rx {
+            for (x, [index, y]) in val.into_iter().enumerate() {
+                game.screen.pixel_buffer[x as usize + y as usize * game.screen.width] =
+                    floor_tex.pixel_buffer[index as usize];
+                game.screen.pixel_buffer
+                    [x as usize + (game.screen.height - 1 - y as usize) * game.screen.width] =
+                    ceil_tex.pixel_buffer[index as usize];
+            }
+        }
+        /* 
+        log::info!(
+            "Rendering floor and ceil took: {} µs",
+            start.elapsed().as_micros()
+        );
+        */
+    }
 }
 
 impl Component for CameraComponent {
@@ -154,5 +237,6 @@ impl Component for CameraComponent {
         let camera_normal = Vec2::new(camera_plane.y, -camera_plane.x);
         self.cast_rays(entity, game, camera_plane, camera_normal);
         self.project_entities(entity, game, camera_plane, camera_normal);
+        self.cast_floor(entity, game, camera_plane, camera_normal)
     }
 }

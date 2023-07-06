@@ -37,11 +37,11 @@ impl<'a> TileMap<'a> {
                             Direction::Horizontal => Rect {
                                 pos,
                                 width: 1.0,
-                                height: (1.0 - offset).min(0.4),
+                                height: (1.0 - offset).min(0.2),
                             },
                             Direction::Vertical => Rect {
                                 pos,
-                                width: (1.0 - offset).min(0.4),
+                                width: (1.0 - offset).min(0.2),
                                 height: 1.0,
                             },
                         },
@@ -49,11 +49,11 @@ impl<'a> TileMap<'a> {
                             Direction::Horizontal => Rect {
                                 pos: pos - vec2(opened, 0.0),
                                 width: 1.0 * (1.0 - opened),
-                                height: 0.4,
+                                height: 0.2,
                             },
                             Direction::Vertical => Rect {
                                 pos: pos - vec2(0.0, opened),
-                                width: 0.4,
+                                width: 0.2,
                                 height: 1.0 * (1.0 - opened),
                             },
                         },
@@ -98,6 +98,8 @@ pub fn load_map(path: &str) -> Result<TileMap, Box<dyn Error>> {
                 '/' => Some(door(Direction::Vertical)),
                 '-' => Some(subwall(Direction::Horizontal)),
                 '|' => Some(subwall(Direction::Vertical)),
+                'w' => Some(wood(Direction::Vertical)),
+                'W' => Some(wood(Direction::Horizontal)),
                 _ => None,
             })
         }
@@ -122,5 +124,12 @@ fn subwall<'a>(direction: Direction) -> Tile<'a> {
         tile_type: TileType::Subwall(0.5, direction),
         projectile_passable: false,
         sprites: ["assets/bars.png", "assets/bars.png"],
+    }
+}
+fn wood<'a>(direction: Direction) -> Tile<'a> {
+    Tile {
+        tile_type: TileType::Subwall(0.3, direction),
+        projectile_passable: false,
+        sprites: ["assets/wood.png", "assets/wood.png"],
     }
 }

@@ -10,7 +10,7 @@ pub struct AnimationComponent {
 }
 
 impl Component  for AnimationComponent {
-    fn update<'a>(&mut self, entity: &mut Entity<'a>, _game: &mut Game, dt: f32) {
+    fn update(&mut self, entity: &mut Entity<'_>, _game: &mut Game, dt: f32) {
         entity.sprite = Some(self.images[(self.cur_time / self.time_per_frame) as usize]);
         self.cur_time += dt;
         if (self.cur_time / self.time_per_frame) > self.images.len() as f32{

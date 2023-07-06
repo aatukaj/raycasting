@@ -1,4 +1,4 @@
-use glam::Vec2;
+use glam::{Vec2, vec2};
 
 use crate::{entity::Entity, Game};
 
@@ -74,16 +74,17 @@ impl ProjectileCollisionComponent {
 }
 impl Component for ProjectileCollisionComponent {
     fn update<'a>(&mut self, entity: &mut Entity, game: &mut Game<'a>, dt: f32) {
-        entity.rect.pos = entity.rect.pos + entity.vel * dt;
+        let mut new_rect = entity.rect.clone();
+        new_rect.pos = entity.rect.pos + entity.vel * dt;
 
         let mut collided = false;
         for other in game.entities.values() {
-            if other.id != self.owner_id && other.rect.collide(&entity.rect) {
+            if other.id != self.owner_id && other.rect.collide(&new_rect) {
                 collided = true;
                 break;
             }
         }
-        if !game.tile_map.get_collisions(&entity.rect).is_empty() {
+        if !game.tile_map.get_collisions(&new_rect).is_empty() {
             collided = true;
         }
         if collided {
@@ -110,15 +111,16 @@ impl Component for ProjectileCollisionComponent {
             game.add_entity(Entity::new(
                 entity.rect.pos,
                 Some(images[0]),
-                Vec2::new(0.0, 0.0),
-                0.5,
+                vec2(0.0, 0.0),
+                1.0,
                 false,
                 vec![Box::new(AnimationComponent {
                     images,
                     time_per_frame: 0.05,
                     cur_time: 0.0,
-                })],
+                }), Box::new(BasicCollisionComponent)],
             ))
         }
+        entity.rect = new_rect;
     }
 }

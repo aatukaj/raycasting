@@ -1,3 +1,4 @@
+
 [package]
 name = "raycasting"
 version = "0.1.0"
@@ -6,7 +7,8 @@ edition = "2021"
 
 [profile.dev.package."*"]
 opt-level = 3
-
+[profile.release]
+debug = 1
 
 [dependencies]
 minifb = "0.24.0"
@@ -18,3 +20,4 @@ simple_logger = { version = "4.2.0", default_features = false, features = [
 log = "0.4.19"
 glam = "0.24.1"
 png = "0.17.9" 
+threadpool = "1.8.1"
