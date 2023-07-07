@@ -218,8 +218,8 @@ impl CameraComponent {
                 //*unsafe {floor_tex.pixel_buffer.get_unchecked(index as usize + x)};
                 game.screen.pixel_buffer
                     [x as usize + (game.screen.height - 1 - y as usize) * game.screen.width] =
-                   *ceil_tex.pixel_buffer.get(index as usize).unwrap_or(&0u32);
-                //*unsafe {ceil_tex.pixel_buffer.get_unchecked(index as usize - x)};
+                 //  *ceil_tex.pixel_buffer.get(index as usize).unwrap_or(&0u32);
+                *unsafe {ceil_tex.pixel_buffer.get_unchecked(index as usize - x)};
             }
         }
         /*
