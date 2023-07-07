@@ -1,4 +1,4 @@
-use glam::{Vec2, vec2};
+use glam::{vec2, Vec2};
 
 use crate::{entity::Entity, Game};
 
@@ -78,9 +78,10 @@ impl Component for ProjectileCollisionComponent {
         new_rect.pos = entity.rect.pos + entity.vel * dt;
 
         let mut collided = false;
-        for other in game.entities.values() {
+        for other in game.entities.values_mut() {
             if other.id != self.owner_id && other.rect.collide(&new_rect) {
                 collided = true;
+                other.health -= 1;
                 break;
             }
         }
@@ -90,10 +91,10 @@ impl Component for ProjectileCollisionComponent {
         if collided {
             let explosion_sound = game
                 .assets
-                .load_sound("assets/sounds/explosionCrunch_000.ogg", None)
-                .clone();
+                .load_sound("assets/sounds/explosionCrunch_000.ogg", None);
             entity.alive = false;
             game.audio_manager.play(explosion_sound).unwrap();
+
             let images = vec![
                 "assets/explosion/explosion1.png",
                 "assets/explosion/explosion2.png",
@@ -114,11 +115,14 @@ impl Component for ProjectileCollisionComponent {
                 vec2(0.0, 0.0),
                 1.0,
                 false,
-                vec![Box::new(AnimationComponent {
-                    images,
-                    time_per_frame: 0.05,
-                    cur_time: 0.0,
-                }), Box::new(BasicCollisionComponent)],
+                vec![
+                    Box::new(AnimationComponent {
+                        images,
+                        time_per_frame: 0.05,
+                        cur_time: 0.0,
+                    }),
+                    Box::new(BasicCollisionComponent),
+                ],
             ))
         }
         entity.rect = new_rect;

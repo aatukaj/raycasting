@@ -1,12 +1,8 @@
 use glam::*;
 
-use crate::{
-    rect::Rect,
-    Component, Game
-};
+use crate::{rect::Rect, Component, Game};
 
 pub struct Entity<'a> {
-
     pub sprite: Option<&'a str>,
     pub look_angle: f32,
     pub vel: Vec2,
@@ -16,6 +12,7 @@ pub struct Entity<'a> {
     components: Option<Vec<Box<dyn Component>>>,
     pub alive: bool,
     pub id: u32,
+    pub health: i32,
 }
 impl<'a> Entity<'a> {
     pub fn new(
@@ -30,16 +27,20 @@ impl<'a> Entity<'a> {
             sprite,
             look_angle: 0.0,
             vel,
-            rect: Rect { pos, width: size, height: size },
+            rect: Rect {
+                pos,
+                width: size,
+                height: size,
+            },
             collidable,
             components: Some(components),
             alive: true,
             id: 0,
+            health: 2,
         }
     }
 
     pub fn update(&mut self, dt: f32, game: &mut Game<'a>) {
-
         let components = self.components.take();
         if let Some(mut components) = components {
             for component in components.iter_mut() {

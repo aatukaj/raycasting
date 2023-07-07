@@ -59,7 +59,6 @@ impl<'a> TileMap<'a> {
                         },
                     };
                     rect.collide(&tile_rect).then_some(tile_rect)
-                    
                 } else {
                     None
                 }
@@ -93,6 +92,11 @@ pub fn load_map(path: &str) -> Result<TileMap, Box<dyn Error>> {
                     tile_type: TileType::Wall,
                     projectile_passable: false,
                     sprites: ["assets/bricksmall.png", "assets/bricksmall2.png"],
+                }),
+                '2' => Some(Tile {
+                    tile_type: TileType::Wall,
+                    projectile_passable: false,
+                    sprites: ["assets/white.png", "assets/white.png"],
                 }),
                 '=' => Some(door(Direction::Horizontal)),
                 '/' => Some(door(Direction::Vertical)),

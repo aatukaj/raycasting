@@ -76,18 +76,23 @@ impl AssetCache {
         &mut self,
         path: &str,
         settings: Option<StaticSoundSettings>,
-    ) -> &StaticSoundData {
-        self.sounds.entry(path.to_string()).or_insert_with(|| {
-            StaticSoundData::from_file(path, settings.unwrap_or_default()).unwrap_or_else(|err| {
-                log::warn!("Couldn't load {path}, ERROR: {err}");
-                StaticSoundData {
-                    //if the sound file doesnt exits, return a dummy sound
-                    sample_rate: 0,
-                    frames: Arc::new([Frame::new(0.0, 0.0)]),
-                    settings: StaticSoundSettings::default(),
-                }
+    ) -> StaticSoundData {
+        self.sounds
+            .entry(path.to_string())
+            .or_insert_with(|| {
+                StaticSoundData::from_file(path, settings.unwrap_or_default()).unwrap_or_else(
+                    |err| {
+                        log::warn!("Couldn't load {path}, ERROR: {err}");
+                        StaticSoundData {
+                            //if the sound file doesnt exits, return a dummy sound
+                            sample_rate: 0,
+                            frames: Arc::new([Frame::new(0.0, 0.0)]),
+                            settings: StaticSoundSettings::default(),
+                        }
+                    },
+                )
             })
-        })
+            .clone()
     }
 }
 
@@ -148,7 +153,7 @@ fn main() {
         "assets/sounds/game_bg.mp3",
         Some(
             StaticSoundSettings::default()
-                .volume(0.5)
+                .volume(0.2)
                 .loop_region(0.0..),
         ),
     );
@@ -175,6 +180,7 @@ fn main() {
         vec![
             Box::new(BasicCollisionComponent),
             Box::new(BasicAiComponent),
+            Box::new(DeathComponent::new("assets/sounds/death.wav")),
         ],
     ));
     game.add_entity(Entity::new(
@@ -186,6 +192,7 @@ fn main() {
         vec![
             Box::new(BasicCollisionComponent),
             Box::new(BasicAiComponent),
+            Box::new(DeathComponent::new("assets/sounds/death.wav")),
         ],
     ));
 

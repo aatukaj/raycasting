@@ -62,7 +62,7 @@ impl DepthBufferRenderer<'_> {
             let buf_data: DepthBufferData<'_> = self.data.pop().unwrap();
             let value = 1.0 / buf_data.distance;
 
-            //let brightness = (value.sqrt() + 0.2).min(1.0);
+            let brightness = (value.sqrt() + 0.2).min(1.0);
             match buf_data.data_type {
                 BufferDataType::Wall {
                     direction: _,

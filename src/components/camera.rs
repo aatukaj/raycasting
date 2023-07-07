@@ -175,7 +175,7 @@ impl CameraComponent {
 
         let pos_z = 0.5 * game.screen.height as f32;
 
-        //let start = time::Instant::now();
+        
 
         let (tx, rx) = mpsc::channel();
 
@@ -210,7 +210,8 @@ impl CameraComponent {
             });
         }
         drop(tx);
-
+        //let start = time::Instant::now();
+        
         for val in rx {
             for (x, [index, y]) in val.into_iter().enumerate() {
                 game.screen.pixel_buffer[x as usize + y as usize * game.screen.width] =
@@ -218,16 +219,16 @@ impl CameraComponent {
                 //*unsafe {floor_tex.pixel_buffer.get_unchecked(index as usize + x)};
                 game.screen.pixel_buffer
                     [x as usize + (game.screen.height - 1 - y as usize) * game.screen.width] =
-                 //  *ceil_tex.pixel_buffer.get(index as usize).unwrap_or(&0u32);
-                *unsafe {ceil_tex.pixel_buffer.get_unchecked(index as usize - x)};
+                   *ceil_tex.pixel_buffer.get(index as usize).unwrap_or(&0u32);
+                //*unsafe {ceil_tex.pixel_buffer.get_unchecked(index as usize + x)};
             }
         }
-        /*
+        /* 
         log::info!(
             "Rendering floor and ceil took: {} µs",
             start.elapsed().as_micros()
-        );
-        */
+        );*/
+        
     }
 }
 
