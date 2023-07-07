@@ -9,11 +9,12 @@ impl Component  for PlayerInputComponent {
     fn update<'a>(&mut self, entity: &mut Entity<'a>, game: &mut Game, dt: f32) {
         let mut vel = Vec2::new(0.0, 0.0);
         let player = entity;
+        let p_speed = 3.0;
         game.window.get_keys().iter().for_each(|key| match key {
-            Key::A => vel += Vec2::new(-5.0, 0.0).rotate(Vec2::from_angle(player.look_angle)),
-            Key::D => vel += Vec2::new(5.0, 0.0).rotate(Vec2::from_angle(player.look_angle)),
-            Key::W => vel += Vec2::new(0.0, -5.0).rotate(Vec2::from_angle(player.look_angle)),
-            Key::S => vel += Vec2::new(0.0, 5.0).rotate(Vec2::from_angle(player.look_angle)),
+            Key::A => vel += Vec2::new(-p_speed, 0.0).rotate(Vec2::from_angle(player.look_angle)),
+            Key::D => vel += Vec2::new(p_speed, 0.0).rotate(Vec2::from_angle(player.look_angle)),
+            Key::W => vel += Vec2::new(0.0, -p_speed).rotate(Vec2::from_angle(player.look_angle)),
+            Key::S => vel += Vec2::new(0.0, p_speed).rotate(Vec2::from_angle(player.look_angle)),
             Key::Left => player.look_angle -= 2.0 * dt,
             Key::Right => player.look_angle += 2.0 * dt,
 
@@ -36,7 +37,7 @@ impl Component  for PlayerInputComponent {
                         false,
                         vec![Box::new(ProjectileCollisionComponent::new(player.id))],
                     ));
-                    let sound_data = game.assets.load_sound("assets/sounds/laserRetro_002.ogg");
+                    let sound_data = game.assets.load_sound("assets/sounds/laserRetro_002.ogg", None);
                     game.audio_manager.play(sound_data.clone()).unwrap();
                 }
                 _ => (),

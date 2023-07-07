@@ -204,8 +204,6 @@ impl CameraComponent {
                         floor_pos += floor_step;
                         let index = tex_pos.x as usize + tex_pos.y as usize * tex_width;
                         vals.push([index as u16, y as u16]);
-
-    
                     }
                     tx.send(vals).unwrap();
                 }
@@ -216,13 +214,15 @@ impl CameraComponent {
         for val in rx {
             for (x, [index, y]) in val.into_iter().enumerate() {
                 game.screen.pixel_buffer[x as usize + y as usize * game.screen.width] =
-                    floor_tex.pixel_buffer[index as usize];
+                    *floor_tex.pixel_buffer.get(index as usize).unwrap_or(&0u32);
+                //*unsafe {floor_tex.pixel_buffer.get_unchecked(index as usize + x)};
                 game.screen.pixel_buffer
                     [x as usize + (game.screen.height - 1 - y as usize) * game.screen.width] =
-                    ceil_tex.pixel_buffer[index as usize];
+                   *ceil_tex.pixel_buffer.get(index as usize).unwrap_or(&0u32);
+                //*unsafe {ceil_tex.pixel_buffer.get_unchecked(index as usize - x)};
             }
         }
-        /* 
+        /*
         log::info!(
             "Rendering floor and ceil took: {} µs",
             start.elapsed().as_micros()

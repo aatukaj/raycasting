@@ -90,7 +90,7 @@ impl Component for ProjectileCollisionComponent {
         if collided {
             let explosion_sound = game
                 .assets
-                .load_sound("assets/sounds/explosionCrunch_000.ogg")
+                .load_sound("assets/sounds/explosionCrunch_000.ogg", None)
                 .clone();
             entity.alive = false;
             game.audio_manager.play(explosion_sound).unwrap();

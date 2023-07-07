@@ -2,7 +2,7 @@ use kira::dsp::Frame;
 use minifb::{Key, Window, WindowOptions};
 use std::cell::Ref;
 use std::rc::Rc;
-use std::{collections::HashMap, cell::RefCell};
+use std::{cell::RefCell, collections::HashMap};
 
 use std::sync::Arc;
 use std::time;
@@ -46,7 +46,7 @@ const SCALE: usize = 1;
 const PLAYER_SIZE: f32 = 0.8;
 
 pub struct AssetCache {
-    sprites: RefCell<HashMap<String,Arc<Surface>>>,
+    sprites: RefCell<HashMap<String, Arc<Surface>>>,
     sounds: HashMap<String, StaticSoundData>,
 }
 impl AssetCache {
@@ -57,7 +57,8 @@ impl AssetCache {
         }
     }
     pub fn load_png(&self, path: &str) -> Arc<Surface> {
-        self.sprites.borrow_mut()
+        self.sprites
+            .borrow_mut()
             .entry(path.to_string())
             .or_insert_with(|| match load_png(path) {
                 Ok(img) => Arc::new(img),
@@ -67,12 +68,17 @@ impl AssetCache {
                     surf.fill(0xDA70D6);
                     Arc::new(surf)
                 }
-            }).clone()
+            })
+            .clone()
     }
 
-    pub fn load_sound(&mut self, path: &str) -> &StaticSoundData {
+    pub fn load_sound(
+        &mut self,
+        path: &str,
+        settings: Option<StaticSoundSettings>,
+    ) -> &StaticSoundData {
         self.sounds.entry(path.to_string()).or_insert_with(|| {
-            StaticSoundData::from_file(path, StaticSoundSettings::default()).unwrap_or_else(|err| {
+            StaticSoundData::from_file(path, settings.unwrap_or_default()).unwrap_or_else(|err| {
                 log::warn!("Couldn't load {path}, ERROR: {err}");
                 StaticSoundData {
                     //if the sound file doesnt exits, return a dummy sound
@@ -137,9 +143,16 @@ fn main() {
         .unwrap();
 
     let mut game = Game::new();
-
     let gun_image = load_png("assets/gun.png").unwrap();
-
+    let music = game.assets.load_sound(
+        "assets/sounds/game_bg.mp3",
+        Some(
+            StaticSoundSettings::default()
+                .volume(0.5)
+                .loop_region(0.0..),
+        ),
+    );
+    game.audio_manager.play(music.clone());
     game.add_entity(Entity::new(
         Vec2::new(6.5, 7.5),
         Some("assets/player.png"),
@@ -156,6 +169,17 @@ fn main() {
     game.add_entity(Entity::new(
         Vec2::new(9.5, 9.5),
         Some("assets/player.png"),
+        Vec2::new(0.0, 0.0),
+        0.6,
+        true,
+        vec![
+            Box::new(BasicCollisionComponent),
+            Box::new(BasicAiComponent),
+        ],
+    ));
+    game.add_entity(Entity::new(
+        Vec2::new(10.5, 9.5),
+        Some("assets/guy.png"),
         Vec2::new(0.0, 0.0),
         0.6,
         true,
@@ -202,7 +226,7 @@ fn main() {
             6.0,
         );
         let tile = game.tile_map.get_tile_mut(ivec2(6, 6)).unwrap();
-        if let TileType::Door(open_value, dir) = tile.tile_type  {
+        if let TileType::Door(open_value, dir) = tile.tile_type {
             tile.tile_type = TileType::Door(open_value + dt / 4.0, dir);
         }
 

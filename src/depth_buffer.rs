@@ -65,7 +65,7 @@ impl DepthBufferRenderer<'_> {
             //let brightness = (value.sqrt() + 0.2).min(1.0);
             match buf_data.data_type {
                 BufferDataType::Wall {
-                    direction,
+                    direction: _,
                     percentage,
                     sprite,
                 } => {
