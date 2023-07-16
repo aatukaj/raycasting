@@ -195,21 +195,27 @@ fn main() {
             Box::new(DeathComponent::new("assets/sounds/death.wav")),
         ],
     ));
+    game.add_entity(Entity::new(
+        Vec2::new(12.5, 8.5),
+        Some("assets/key.png"),
+        Vec2::new(0.0, 0.0),
+        0.2,
+        true,
+        vec![Box::new(BasicCollisionComponent)],
+    ));
 
     // Limit to max ~60 fps update rate
     game.window
         .limit_update_rate(Some(std::time::Duration::from_micros(16600)));
-
+    game.tile_map
+        .tile_update_indeces
+        .push(6 + 6 * game.tile_map.width);
     let mut now = time::SystemTime::now();
     while game.window.is_open() && !game.window.is_key_down(Key::Escape) {
         let dt = now.elapsed().unwrap().as_secs_f32();
 
         now = time::SystemTime::now();
         game.screen.fill(0);
-
-        //render_bg(&mut game.screen);
-
-        //let m_pos = Vec2::from_tuple(window.get_mouse_pos(MouseMode::Clamp).unwrap()) / 2.0;
 
         let keys = game.entities.keys().copied().collect::<Vec<_>>();
 
@@ -220,7 +226,7 @@ fn main() {
                 game.entities.insert(key, entity);
             }
         }
-
+        game.tile_map.update(dt);
         game.renderer.render(&mut game.screen, &mut game.assets);
 
         let surf_to_blit = &gun_image;
@@ -232,10 +238,6 @@ fn main() {
             ),
             6.0,
         );
-        let tile = game.tile_map.get_tile_mut(ivec2(6, 6)).unwrap();
-        if let TileType::Door(open_value, dir) = tile.tile_type {
-            tile.tile_type = TileType::Door(open_value + dt / 4.0, dir);
-        }
 
         game.window
             .update_with_buffer(&game.screen.pixel_buffer, WIDTH, HEIGHT)
@@ -243,22 +245,3 @@ fn main() {
     }
 }
 
-fn render_bg(screen: &mut Surface) {
-    for y in 0..(HEIGHT / 2) {
-        let brigthness = 1.0 - (y as f32 / (HEIGHT / 2) as f32).sqrt();
-        let value = (brigthness + 0.2).min(1.0);
-
-        draw_rect(
-            screen,
-            IVec2::new(0, y as i32),
-            IVec2::new(WIDTH as i32, 1),
-            set_value_brightness(0x516988, value),
-        );
-        draw_rect(
-            screen,
-            IVec2::new(0, (HEIGHT - y) as i32),
-            IVec2::new(WIDTH as i32, 1),
-            set_value_brightness(0xc0cbdc, value),
-        );
-    }
-}

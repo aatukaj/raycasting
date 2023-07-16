@@ -1,10 +1,12 @@
 use super::Component;
+use crate::math::set_value_brightness;
 use crate::tile_map::*;
 use crate::{depth_buffer::*, entity::Entity, Game};
 use glam::*;
-use log;
-use std::sync::mpsc;
-use std::{thread, time};
+
+use std::sync::{mpsc, Arc};
+
+
 use threadpool::ThreadPool;
 pub struct CameraComponent {
     threadpool: ThreadPool,
@@ -175,11 +177,9 @@ impl CameraComponent {
 
         let pos_z = 0.5 * game.screen.height as f32;
 
-        
-
         let (tx, rx) = mpsc::channel();
 
-        let num_jobs: usize = 32;
+        let num_jobs: usize = game.screen.height / 16;
         let y_per_job = game.screen.height / 2 / num_jobs;
         let tex_width = floor_tex.width;
         let screen_width = game.screen.width;
@@ -190,6 +190,8 @@ impl CameraComponent {
             let tx = tx.clone();
             let start_i = game.screen.height / 2 + t * y_per_job;
             let end_i = start_i + y_per_job;
+            let floor_tex = Arc::clone(&floor_tex);
+            let ceil_tex = Arc::clone(&ceil_tex);
 
             self.threadpool.execute(move || {
                 for y in (start_i)..end_i {
@@ -199,11 +201,24 @@ impl CameraComponent {
 
                     let mut floor_pos = pos + row_dist * ray_dir0;
                     let mut vals = Vec::with_capacity(screen_width);
+
+                    let brightness = ((1.0 / row_dist.sqrt() + 0.2).min(1.0) * 255.0) as u32;
+
                     for _ in 0..screen_width {
                         let tex_pos = (floor_size * floor_pos.fract()).as_uvec2();
                         floor_pos += floor_step;
                         let index = tex_pos.x as usize + tex_pos.y as usize * tex_width;
-                        vals.push([index as u16, y as u16]);
+                        vals.push((
+                            y as u16,
+                            set_value_brightness(
+                                *floor_tex.pixel_buffer.get(index as usize).unwrap_or(&0u32),
+                                brightness,
+                            ),
+                            set_value_brightness(
+                                *ceil_tex.pixel_buffer.get(index as usize).unwrap_or(&0u32),
+                                brightness,
+                            ),
+                        ));
                     }
                     tx.send(vals).unwrap();
                 }
@@ -211,24 +226,20 @@ impl CameraComponent {
         }
         drop(tx);
         //let start = time::Instant::now();
-        
+
         for val in rx {
-            for (x, [index, y]) in val.into_iter().enumerate() {
-                game.screen.pixel_buffer[x as usize + y as usize * game.screen.width] =
-                    *floor_tex.pixel_buffer.get(index as usize).unwrap_or(&0u32);
-                //*unsafe {floor_tex.pixel_buffer.get_unchecked(index as usize + x)};
+            for (x, (y, col1, col2)) in val.into_iter().enumerate() {
+                game.screen.pixel_buffer[x as usize + y as usize * game.screen.width] = col1;
+
                 game.screen.pixel_buffer
-                    [x as usize + (game.screen.height - 1 - y as usize) * game.screen.width] =
-                   *ceil_tex.pixel_buffer.get(index as usize).unwrap_or(&0u32);
-                //*unsafe {ceil_tex.pixel_buffer.get_unchecked(index as usize + x)};
+                    [x as usize + (game.screen.height - 1 - y as usize) * game.screen.width] = col2;
             }
         }
-        /* 
+        /*
         log::info!(
             "Rendering floor and ceil took: {} µs",
             start.elapsed().as_micros()
         );*/
-        
     }
 }
 

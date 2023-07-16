@@ -3,10 +3,10 @@ use std::{error::Error, fs};
 use crate::{depth_buffer::Direction, rect::Rect};
 use glam::*;
 pub struct TileMap<'a> {
-    width: usize,
-    height: usize,
+    pub width: usize,
+    pub height: usize,
     buf: Vec<Option<Tile<'a>>>,
-    tile_update_indeces: Vec<usize>,
+    pub tile_update_indeces: Vec<usize>,
 }
 impl<'a> TileMap<'a> {
     pub fn get_tile(&self, pos: IVec2) -> Option<&Tile<'a>> {
@@ -20,6 +20,22 @@ impl<'a> TileMap<'a> {
             return self.buf[pos.x as usize + pos.y as usize * self.width].as_mut();
         }
         None
+    }
+    pub fn update(&mut self, dt: f32) {
+        let mut new_indeces=  Vec::new();
+        for &index in &self.tile_update_indeces {
+            if let Some(ref mut tile) = self.buf[index] {
+                if let TileType::Door(ref mut percentage, _) = tile.tile_type {
+                    if *percentage >= 1.0 {
+                        continue;
+                    }
+                    *percentage += dt / 3.0;
+                    new_indeces.push(index);
+                }
+
+            }
+        }
+        self.tile_update_indeces = new_indeces;
     }
     pub fn get_collisions(&'a self, rect: &'a Rect) -> Vec<Rect> {
         rect.get_corners()

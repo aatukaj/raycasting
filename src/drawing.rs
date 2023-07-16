@@ -74,6 +74,8 @@ impl Iterator for LineDrawer {
     }
 }
 
+
+#[inline]
 pub fn val_from_rgb(r: u32, g: u32, b: u32) -> u32 {
     b.min(255) | (g.min(255) << 8) | (r.min(255) << 16) | (255 << 24)
 }

@@ -62,7 +62,7 @@ impl DepthBufferRenderer<'_> {
             let buf_data: DepthBufferData<'_> = self.data.pop().unwrap();
             let value = 1.0 / buf_data.distance;
 
-            let brightness = (value.sqrt() + 0.2).min(1.0);
+            let brightness = ((value.sqrt() + 0.2).min(1.0) * 255.0) as u32;
             match buf_data.data_type {
                 BufferDataType::Wall {
                     direction: _,
@@ -84,7 +84,7 @@ impl DepthBufferRenderer<'_> {
                             let _ = screen.set_pixel(
                                 x,
                                 (y + offset) as u32,
-                                col, // set_value_brightness(col, brightness) really slow
+                                set_value_brightness(col, brightness),
                             );
                         }
                     }

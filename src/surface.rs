@@ -1,4 +1,8 @@
 use glam::*;
+
+
+
+#[derive(Debug)]
 pub struct Surface {
     pub width: usize,
     pub height: usize,
